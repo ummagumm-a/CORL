@@ -584,6 +584,7 @@ def train(config: TrainConfig):
         episode_length = 0
 
         if done:
+            state, done = env.reset(), False
             # If done - log info about current episode to wandb
             # and reset counters
             wandb.log(
