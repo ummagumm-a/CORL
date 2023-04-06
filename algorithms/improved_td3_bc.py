@@ -561,19 +561,41 @@ def train(config: TrainConfig):
 
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
     state, done = env.reset(), False
-    episode_rewards = []
+    episode_reward = 0.0
     episode_length = 0
     for _ in range(config.buffer_collections_timesteps):
-        noise = (torch.randn_like(action) * self.policy_noise).clamp(
-            -self.noise_clip, self.noise_clip
-        )
+        action = trainer.actor.act(state, device=config.device)
+        noise = np.random.normal(0, scale=config.expl_noise, size=action_dim)
+        noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
+        action += noise
+        action = action.clip(-trainer.max_action, trainer.max_action)
 
-        next_action = (self.actor_target(next_state) + noise).clamp(
-            -self.max_action, self.max_action
-        )
+        # This is taken from https://github.com/vwxyzjn/cleanrl/blob/2df24f4ad04317e27a76aace8e8c410687234b34/cleanrl/dqn.py#LL182C45-L182C45
+        next_state, reward, done, info = env.step(action)
+        if done:
+            next_state = info["terminal_observation"]
+
+        replay_buffer.add(state, next_state, action, reward, done, [info])
+
+        state = next_state
+
+        # For logging
+        episode_reward += reward
+        episode_length = 0
 
         if done:
-
+            # If done - log info about current episode to wandb
+            # and reset counters
+            wandb.log(
+                {
+                   "buffer_collection/episode_score": episode_reward,
+                   "buffer_collection/episode_length": episode_length,
+                },
+                step=trainer.total_it,
+            )
+            episode_rewards = 0.0 
+            episode_length = 0
+            
 
 
 
