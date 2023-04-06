@@ -16,7 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb
-from stable_baselines3.buffers import ReplayBuffer as sb3_ReplayBuffer
+from stable_baselines3.common.buffers import ReplayBuffer as sb3_ReplayBuffer
 
 TensorBatch = List[torch.Tensor]
 
@@ -55,8 +55,8 @@ class TrainConfig:
     finetune_timesteps: int = 245000
     # Wandb logging
     project: str = "CORL"
-    group: str = "TD3_BC-D4RL"
-    name: str = "TD3_BC"
+    group: str = "IMPROVED_TD3_BC-D4RL_2.0"
+    name: str = "IMPROVED_TD3_BC_2.0"
 
     def __post_init__(self):
         self.name = f"{self.name}-{self.env}-{str(uuid.uuid4())[:8]}"
@@ -453,54 +453,61 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
 
 
 def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str):
-    state, done = env.reset(), False
-    episode_reward = 0.0
-    episode_length = 0
-    for _ in range(n_timesteps):
-        action = trainer.actor.act(state, device=config.device)
-        noise = np.random.normal(0, scale=config.expl_noise, size=action_dim)
-        noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
-        action += noise
-        action = action.clip(-trainer.max_action, trainer.max_action)
-
-        # This is taken from https://github.com/vwxyzjn/cleanrl/blob/2df24f4ad04317e27a76aace8e8c410687234b34/cleanrl/dqn.py#LL182C45-L182C45
-        next_state, reward, done, info = env.step(action)
-        if done:
-            next_state = info["terminal_observation"]
-
-        replay_buffer.add(state, next_state, action, reward, done, [info])
-
-        state = next_state
-
-        # Train
-        if mode == "online_finetune":
-            batch_ = replay_buffer.sample(config.batch_size)
-            batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
-            batch = tuple(map(lambda x: x.to(torch.float32), batch))
-            log_dict = trainer.train(batch)
-            log_dict["alpha"] = trainer.alpha
-            wandb.log({"online_finetune": log_dict}, step=trainer.total_it)
-
-            traner.alpha *= decay_rate
-
-
-        # For logging
-        episode_reward += reward
+    wandb.init(
+        project=config.project,
+        group=config.group,
+        name=config.name,
+        job_type="finetune"
+        id=str(uuid.uuid4()),
+        ):
+        state, done = env.reset(), False
+        episode_reward = 0.0
         episode_length = 0
+        for _ in range(n_timesteps):
+            action = trainer.actor.act(state, device=config.device)
+            noise = np.random.normal(0, scale=config.expl_noise, size=action_dim)
+            noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
+            action += noise
+            action = action.clip(-trainer.max_action, trainer.max_action)
 
-        if done:
-            state, done = env.reset(), False
-            # If done - log info about current episode to wandb
-            # and reset counters
-            wandb.log(
-                {
-                  f "{mode}/episode_score": episode_reward,
-                  f "{mode}/episode_length": episode_length,
-                },
-                step=trainer.total_it,
-            )
-            episode_rewards = 0.0 
+            # This is taken from https://github.com/vwxyzjn/cleanrl/blob/2df24f4ad04317e27a76aace8e8c410687234b34/cleanrl/dqn.py#LL182C45-L182C45
+            next_state, reward, done, info = env.step(action)
+            if done:
+                next_state = info["terminal_observation"]
+
+            replay_buffer.add(state, next_state, action, reward, done, [info])
+
+            state = next_state
+
+            # Train
+            if mode == "online_finetune":
+                batch_ = replay_buffer.sample(config.batch_size)
+                batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
+                batch = tuple(map(lambda x: x.to(torch.float32), batch))
+                log_dict = trainer.train(batch)
+                log_dict["alpha"] = trainer.alpha
+                wandb.log({"online_finetune": log_dict}, step=trainer.total_it)
+
+                traner.alpha *= decay_rate
+
+
+            # For logging
+            episode_reward += reward
             episode_length = 0
+
+            if done:
+                state, done = env.reset(), False
+                # If done - log info about current episode to wandb
+                # and reset counters
+                wandb.log(
+                    {
+                      f"{mode}/episode_score": episode_reward,
+                      f"{mode}/episode_length": episode_length,
+                    },
+                    step=trainer.total_it,
+                )
+                episode_rewards = 0.0 
+                episode_length = 0
  
 
 @pyrallis.wrap()
