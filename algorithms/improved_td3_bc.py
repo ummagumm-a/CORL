@@ -12,6 +12,7 @@ import d4rl
 import gym
 import numpy as np
 import pyrallis
+import tqdm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -452,7 +453,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
     state, done = env.reset(), False
     episode_reward = 0.0
     episode_length = 0
-    for _ in tqdm.tqmd(range(n_timesteps), desc=f"{mode}:  "):
+    for _ in tqdm.tqdm(range(n_timesteps), desc=f"{mode}:  "):
         action = trainer.actor.act(state, device=config.device)
         noise = np.random.normal(0, scale=config.expl_noise, size=action.shape)
         noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
@@ -571,6 +572,7 @@ def train(config: TrainConfig):
     print(f"Training TD3 + BC, Env: {config.env}, Seed: {seed}")
     print("---------------------------------------")
 
+    wandb_init(asdict(config))
     # Initialize actor
     trainer = TD3_BC(**kwargs)
 
@@ -584,7 +586,6 @@ def train(config: TrainConfig):
         # Offline Training
         offline_train(config, replay_buffer, trainer, env, 'offline_training')
 
-    wandb_init(asdict(config))
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
     offline_train(config, replay_buffer, trainer, env, 'offline_refinement')
