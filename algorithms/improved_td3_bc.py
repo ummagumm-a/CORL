@@ -404,8 +404,6 @@ class TD3_BC:  # noqa
 
 
 def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3_BC, env, mode: str):
-    wandb_init(asdict(config))
-
     evaluations = []
     for t in range(int(config.max_timesteps)):
         batch = replay_buffer.sample(config.batch_size)
@@ -431,7 +429,7 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
                 f"{eval_score:.3f} , D4RL score: {normalized_eval_score:.3f}"
             )
             print("---------------------------------------")
-            if config.checkpoint_path and len(evaluations) != 1 and max(evaluations) < normalized_eval_score:
+            if config.checkpoints_path and len(evaluations) != 1 and max(evaluations) < normalized_eval_score:
                 torch.save(
                     trainer.state_dict(),
                     os.path.join(config.checkpoints_path, f"best_checkpoint.pt"),
@@ -449,66 +447,54 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
                 step=trainer.total_it,
             )
 
-    wandb.finish()
+
+def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str, decay_rate:float = None):
+    state, done = env.reset(), False
+    episode_reward = 0.0
+    episode_length = 0
+    for _ in tqdm.tqmd(range(n_timesteps), desc=f"{mode}:  "):
+        action = trainer.actor.act(state, device=config.device)
+        noise = np.random.normal(0, scale=config.expl_noise, size=action.shape)
+        noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
+        action += noise
+        action = action.clip(-trainer.max_action, trainer.max_action)
+
+        next_state, reward, done, info = env.step(action)
+
+        replay_buffer.add(state, next_state, action, reward, done, [info])
+
+        state = next_state
+
+        # Train
+        if mode == "online_finetune":
+            batch_ = replay_buffer.sample(config.batch_size)
+            batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
+            batch = tuple(map(lambda x: x.to(torch.float32), batch))
+            log_dict = trainer.train(batch)
+            log_dict["alpha"] = trainer.alpha
+            wandb.log({"online_finetune": log_dict}, step=trainer.total_it)
+
+            trainer.alpha *= decay_rate
 
 
-def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str):
-    with wandb.init(
-        project=config.project,
-        group=config.group,
-        name=config.name,
-        job_type="finetune",
-        id=str(uuid.uuid4()),
-    ):
-        state, done = env.reset(), False
-        episode_reward = 0.0
+        # For logging
+        episode_reward += reward
         episode_length = 0
-        for _ in range(n_timesteps):
-            action = trainer.actor.act(state, device=config.device)
-            noise = np.random.normal(0, scale=config.expl_noise, size=action_dim)
-            noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
-            action += noise
-            action = action.clip(-trainer.max_action, trainer.max_action)
 
-            # This is taken from https://github.com/vwxyzjn/cleanrl/blob/2df24f4ad04317e27a76aace8e8c410687234b34/cleanrl/dqn.py#LL182C45-L182C45
-            next_state, reward, done, info = env.step(action)
-            if done:
-                next_state = info["terminal_observation"]
-
-            replay_buffer.add(state, next_state, action, reward, done, [info])
-
-            state = next_state
-
-            # Train
-            if mode == "online_finetune":
-                batch_ = replay_buffer.sample(config.batch_size)
-                batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
-                batch = tuple(map(lambda x: x.to(torch.float32), batch))
-                log_dict = trainer.train(batch)
-                log_dict["alpha"] = trainer.alpha
-                wandb.log({"online_finetune": log_dict}, step=trainer.total_it)
-
-                traner.alpha *= decay_rate
-
-
-            # For logging
-            episode_reward += reward
+        if done:
+            state, done = env.reset(), False
+            # If done - log info about current episode to wandb
+            # and reset counters
+            wandb.log(
+                {
+                  f"{mode}/episode_score": episode_reward,
+                  f"{mode}/episode_length": episode_length,
+                },
+                step=trainer.total_it,
+            )
+            episode_rewards = 0.0 
             episode_length = 0
 
-            if done:
-                state, done = env.reset(), False
-                # If done - log info about current episode to wandb
-                # and reset counters
-                wandb.log(
-                    {
-                      f"{mode}/episode_score": episode_reward,
-                      f"{mode}/episode_length": episode_length,
-                    },
-                    step=trainer.total_it,
-                )
-                episode_rewards = 0.0 
-                episode_length = 0
- 
 
 @pyrallis.wrap()
 def train(config: TrainConfig):
@@ -598,6 +584,7 @@ def train(config: TrainConfig):
         # Offline Training
         offline_train(config, replay_buffer, trainer, env, 'offline_training')
 
+    wandb_init(asdict(config))
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
     offline_train(config, replay_buffer, trainer, env, 'offline_refinement')
@@ -619,6 +606,7 @@ def train(config: TrainConfig):
     # Finetune online with data collected from interactions with the environment
     online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "online_finetune", decay_rate=decay_rate)
 
+    wandb.finish()
 
 if __name__ == "__main__":
     train()
