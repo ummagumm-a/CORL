@@ -403,7 +403,7 @@ class TD3_BC:  # noqa
         self.total_it = state_dict["total_it"]
 
 
-def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3_BC, mode: str):
+def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3_BC, env, mode: str):
     wandb_init(asdict(config))
 
     evaluations = []
@@ -452,8 +452,44 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
     wandb.finish()
 
 
-def online_train(config, replay_buffer, trainer):
+def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str):
+    state, done = env.reset(), False
+    episode_reward = 0.0
+    episode_length = 0
+    for _ in range(n_timesteps):
+        action = trainer.actor.act(state, device=config.device)
+        noise = np.random.normal(0, scale=config.expl_noise, size=action_dim)
+        noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
+        action += noise
+        action = action.clip(-trainer.max_action, trainer.max_action)
 
+        # This is taken from https://github.com/vwxyzjn/cleanrl/blob/2df24f4ad04317e27a76aace8e8c410687234b34/cleanrl/dqn.py#LL182C45-L182C45
+        next_state, reward, done, info = env.step(action)
+        if done:
+            next_state = info["terminal_observation"]
+
+        replay_buffer.add(state, next_state, action, reward, done, [info])
+
+        state = next_state
+
+        # For logging
+        episode_reward += reward
+        episode_length = 0
+
+        if done:
+            state, done = env.reset(), False
+            # If done - log info about current episode to wandb
+            # and reset counters
+            wandb.log(
+                {
+                  f "{mode}/episode_score": episode_reward,
+                  f "{mode}/episode_length": episode_length,
+                },
+                step=trainer.total_it,
+            )
+            episode_rewards = 0.0 
+            episode_length = 0
+ 
 
 @pyrallis.wrap()
 def train(config: TrainConfig):
@@ -542,11 +578,11 @@ def train(config: TrainConfig):
         # and then just reuse it in further steps
 
         # Offline Training
-        offline_train(config, replay_buffer, trainer, 'offline_training')
+        offline_train(config, replay_buffer, trainer, env, 'offline_training')
 
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
-    offline_train(config, replay_buffer, trainer, 'offline_refinement')
+    offline_train(config, replay_buffer, trainer, env, 'offline_refinement')
 
     decay_rate = np.exp(np.log(config.alpha_start / config.alpha_end) / config.finetune_timesteps)
     trainer.alpha = config.alpha_start
@@ -560,43 +596,11 @@ def train(config: TrainConfig):
             )
 
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
-    state, done = env.reset(), False
-    episode_reward = 0.0
-    episode_length = 0
-    for _ in range(config.buffer_collections_timesteps):
-        action = trainer.actor.act(state, device=config.device)
-        noise = np.random.normal(0, scale=config.expl_noise, size=action_dim)
-        noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
-        action += noise
-        action = action.clip(-trainer.max_action, trainer.max_action)
+    online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection")
 
-        # This is taken from https://github.com/vwxyzjn/cleanrl/blob/2df24f4ad04317e27a76aace8e8c410687234b34/cleanrl/dqn.py#LL182C45-L182C45
-        next_state, reward, done, info = env.step(action)
-        if done:
-            next_state = info["terminal_observation"]
-
-        replay_buffer.add(state, next_state, action, reward, done, [info])
-
-        state = next_state
-
-        # For logging
-        episode_reward += reward
-        episode_length = 0
-
-        if done:
-            state, done = env.reset(), False
-            # If done - log info about current episode to wandb
-            # and reset counters
-            wandb.log(
-                {
-                   "buffer_collection/episode_score": episode_reward,
-                   "buffer_collection/episode_length": episode_length,
-                },
-                step=trainer.total_it,
-            )
-            episode_rewards = 0.0 
-            episode_length = 0
-            
+    # Finetune online with data collected from interactions with the environment
+    online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection")
+           
 
 
 
