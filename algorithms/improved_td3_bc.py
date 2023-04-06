@@ -29,7 +29,8 @@ class TrainConfig:
     seed: int = 0  # Sets Gym, PyTorch and Numpy seeds
     eval_freq: int = int(5e3)  # How often (time steps) we evaluate
     n_episodes: int = 10  # How many episodes run during evaluation
-    max_timesteps: int = int(1e6)  # Max time steps to run environment
+#    max_timesteps: int = int(1e6)  # Max time steps to run environment
+    max_timesteps: int = int(3e5)  # Max time steps to run environment
     checkpoints_path: Optional[str] = None  # Save path
     load_model: str = ""  # Model load file name, "" doesn't load
     # TD3
@@ -352,7 +353,7 @@ class TD3_BC:  # noqa
             penalty = F.mse_loss(pi, action)
             wandb.log({"penalty": penalty})
 #            actor_loss = -lmbda * q.mean() + F.mse_loss(pi, action)
-            actor_loss = q.mean() / q.abs().mean().detach() + trainer.alpha * penalty
+            actor_loss = -q.mean() / q.abs().mean().detach() + trainer.alpha * penalty
             log_dict["actor_loss"] = actor_loss.item()
             # Optimize the actor
             self.actor_optimizer.zero_grad()
@@ -504,10 +505,13 @@ def train(config: TrainConfig):
                 f"{eval_score:.3f} , D4RL score: {normalized_eval_score:.3f}"
             )
             print("---------------------------------------")
-            torch.save(
-                trainer.state_dict(),
-                os.path.join(config.checkpoints_path, f"checkpoint_{t}.pt"),
-            )
+            if config.checkpoint_path and len(evaluations) != 1 and max(evaluations) < normalized_eval_score:
+                torch.save(
+                    trainer.state_dict(),
+                    os.path.join(config.checkpoints_path, f"best_checkpoint.pt"),
+                )
+                wandb.save(os.path.join(config.checkpoints_path, f"best_checkpoint.pt"))
+
             wandb.log(
                 {"d4rl_normalized_score": normalized_eval_score},
                 step=trainer.total_it,
