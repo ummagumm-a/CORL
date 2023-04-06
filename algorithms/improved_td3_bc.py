@@ -472,6 +472,13 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
 
         state = next_state
 
+        # Train
+        if mode == "online_finetune":
+            batch_ = replay_buffer.sample(config.batch_size)
+            batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
+            batch = tuple(map(lambda x: x.to(torch.float32), batch))
+            trainer.train(batch)
+
         # For logging
         episode_reward += reward
         episode_length = 0
@@ -598,7 +605,7 @@ def train(config: TrainConfig):
     online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection")
 
     # Finetune online with data collected from interactions with the environment
-    online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection")
+    online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "online_finetune", decay_rate=decay_rate)
            
 
 
