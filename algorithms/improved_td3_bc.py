@@ -482,10 +482,10 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
         episode_length = 0
 
         if done:
-            print("Done")
             state, done = env.reset(), False
             # If done - log info about current episode to wandb
             # and reset counters
+            print("Done:", episode_reward, episode_length)
             episode_log_dict = {
                           "episode_score": episode_reward,
                           "episode_length": episode_length,
