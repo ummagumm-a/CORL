@@ -1,0 +1,49 @@
+pybullet build time: May 20 2022 19:44:17
+Warning: Flow failed to import. Set the environment variable D4RL_SUPPRESS_IMPORT_ERROR=1 to suppress this message.
+No module named 'flow'
+/usr/local/lib/python3.8/dist-packages/glfw/__init__.py:916: GLFWError: (65544) b'X11: The DISPLAY environment variable is missing'
+  warnings.warn(message, GLFWError)
+Warning: CARLA failed to import. Set the environment variable D4RL_SUPPRESS_IMPORT_ERROR=1 to suppress this message.
+No module named 'carla'
+/usr/lib/python3/dist-packages/requests/__init__.py:89: RequestsDependencyWarning: urllib3 (1.26.15) or chardet (3.0.4) doesn't match a supported version!
+  warnings.warn("urllib3 ({}) or chardet ({}) doesn't match a supported "
+/usr/local/lib/python3.8/dist-packages/d4rl/gym_mujoco/gym_envs.py:13: UserWarning: [33mThis environment is deprecated. Please use the most recent version of this environment.[0m
+  offline_env.OfflineEnv.__init__(self, **kwargs)
+/usr/local/lib/python3.8/dist-packages/gym/spaces/box.py:73: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(
+Downloading dataset: http://rail.eecs.berkeley.edu/datasets/offline_rl/gym_mujoco/hopper_mixed.hdf5 to /root/.d4rl/datasets/hopper_mixed.hdf5
+load datafile:   0%|          | 0/5 [00:00<?, ?it/s]load datafile:  40%|████      | 2/5 [00:00<00:00, 18.14it/s]load datafile: 100%|██████████| 5/5 [00:00<00:00, 42.96it/s]
+wandb: Currently logged in as: ummagumm-a. Use `wandb login --relogin` to force relogin
+Dataset size: 200918
+Checkpoints path: ckpts/IMPROVED_TD3_BC_2.0-hopper-medium-replay-v0-10a0cffc
+---------------------------------------
+Training TD3 + BC, Env: hopper-medium-replay-v0, Seed: 0
+---------------------------------------
+wandb: wandb version 0.14.1 is available!  To upgrade, please run:
+wandb:  $ pip install wandb --upgrade
+wandb: Tracking run with wandb version 0.12.21
+wandb: Run data is saved locally in /workspace/pp/CORL/wandb/run-20230406_142214-72d22859-1e93-4b87-bbbc-5880a9ccfdfe
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run IMPROVED_TD3_BC_2.0-hopper-medium-replay-v0-10a0cffc
+wandb: ⭐️ View project at https://wandb.ai/ummagumm-a/CORL
+wandb: 🚀 View run at https://wandb.ai/ummagumm-a/CORL/runs/72d22859-1e93-4b87-bbbc-5880a9ccfdfe
+[34m[1mwandb[0m: [33mWARNING[0m Calling wandb.run.save without any arguments is deprecated.Changes to attributes are automatically persisted.
+Traceback (most recent call last):
+  File "algorithms/improved_td3_bc.py", line 626, in <module>
+    train()
+  File "/usr/local/lib/python3.8/dist-packages/pyrallis/argparsing.py", line 158, in wrapper_inner
+    response = fn(cfg, *args, **kwargs)
+  File "algorithms/improved_td3_bc.py", line 596, in train
+    offline_train(config, replay_buffer, trainer, env, 'offline_training')
+  File "algorithms/improved_td3_bc.py", line 417, in offline_train
+    log_dict = trainer.train(batch)
+  File "algorithms/improved_td3_bc.py", line 351, in train
+    if update_critic:
+NameError: name 'update_critic' is not defined
+wandb: Waiting for W&B process to finish... (failed 1). Press Control-C to abort syncing.
+wandb: - 0.001 MB of 0.001 MB uploaded (0.000 MB deduped)wandb: \ 0.001 MB of 0.001 MB uploaded (0.000 MB deduped)wandb: | 0.001 MB of 0.001 MB uploaded (0.000 MB deduped)wandb: / 0.001 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: - 0.001 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: \ 0.001 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: | 0.001 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: / 0.002 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: - 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: \ 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: | 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: / 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: - 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: \ 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: | 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb: / 0.004 MB of 0.004 MB uploaded (0.000 MB deduped)wandb:                                                                                
+/usr/lib/python3/dist-packages/requests/__init__.py:89: RequestsDependencyWarning: urllib3 (1.26.15) or chardet (3.0.4) doesn't match a supported version!
+  warnings.warn("urllib3 ({}) or chardet ({}) doesn't match a supported "
+wandb: Synced IMPROVED_TD3_BC_2.0-hopper-medium-replay-v0-10a0cffc: https://wandb.ai/ummagumm-a/CORL/runs/72d22859-1e93-4b87-bbbc-5880a9ccfdfe
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20230406_142214-72d22859-1e93-4b87-bbbc-5880a9ccfdfe/logs

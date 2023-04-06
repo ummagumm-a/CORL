@@ -459,6 +459,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
     episode_length = 0
     for i in tqdm.tqdm(range(n_timesteps), desc=mode):
         log = {}
+        # The action is generated in the same way as in TD3_BC.train
         action = trainer.actor.act(state, device=config.device)
         noise = np.random.normal(0, scale=config.expl_noise, size=action.shape)
         noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
@@ -474,6 +475,8 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
         # Train
         if mode == "online_finetune":
             batch_ = replay_buffer.sample(config.batch_size)
+            # This reodrering is for compatibility between ReplayBuffer in this file
+            # and ReplayBuffer from stable_baselines3
             batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
             batch = tuple(map(lambda x: x.to(torch.float32), batch))
             log_dict = trainer.train(batch)
@@ -597,8 +600,10 @@ def train(config: TrainConfig):
 
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
+    trainer.update_critic = False
     offline_train(config, replay_buffer, trainer, env, 'offline_refinement')
 
+    trainer.update_critic = True
     decay_rate = np.exp(np.log(config.alpha_end / config.alpha_start) / config.finetune_timesteps)
     print("decay_rate", decay_rate)
     trainer.alpha = config.alpha_start
@@ -611,7 +616,6 @@ def train(config: TrainConfig):
             handle_timeout_termination=True
             )
 
-#    trainer.total_it = 0
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
     episode_num = online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
 
