@@ -410,7 +410,7 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
         batch = replay_buffer.sample(config.batch_size)
         batch = [b.to(config.device) for b in batch]
         log_dict = trainer.train(batch)
-        wandb.log(log_dict, step=trainer.total_it)
+        wandb.log({mode: log_dict}, step=trainer.total_it)
         # Evaluate episode
         if (t + 1) % config.eval_freq == 0:
             print(f"Time steps: {t + 1}")
@@ -437,16 +437,15 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
                 )
                 wandb.save(os.path.join(config.checkpoints_path, f"best_checkpoint.pt"))
 
-            wandb.log(
-                {
-                   f"{mode}/d4rl_normalized_score": normalized_eval_score,
-                   f"{mode}/eval_score_mean": eval_scores.mean(),
-                   f"{mode}/eval_score_min": eval_scores.min(),
-                   f"{mode}/eval_lengths_mean": eval_lengths.mean(),
-                   f"{mode}/eval_lengths_min": eval_lengths.min(),
-                },
-                step=trainer.total_it,
-            )
+            eval_log_dict = {
+                   "d4rl_normalized_score": normalized_eval_score,
+                   "eval_score_mean": eval_scores.mean(),
+                   "eval_score_min": eval_scores.min(),
+                   "eval_lengths_mean": eval_lengths.mean(),
+                   "eval_lengths_min": eval_lengths.min(),
+                }
+
+            wandb.log({mode: eval_log_dict}, step=trainer.total_it)
 
 
 def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str, decay_rate:float = None):
@@ -473,7 +472,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             batch = tuple(map(lambda x: x.to(torch.float32), batch))
             log_dict = trainer.train(batch)
             log_dict["alpha"] = trainer.alpha
-            wandb.log({"online_finetune": log_dict}, step=trainer.total_it)
+            wandb.log({mode: log_dict}, step=trainer.total_it)
 
             trainer.alpha *= decay_rate
 
@@ -483,17 +482,16 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
         episode_length = 0
 
         if done:
+            print("Done")
             state, done = env.reset(), False
             # If done - log info about current episode to wandb
             # and reset counters
-            wandb.log(
-                {
-                  f"{mode}/episode_score": episode_reward,
-                  f"{mode}/episode_length": episode_length,
-                },
-                step=trainer.total_it,
-            )
-            episode_rewards = 0.0 
+            episode_log_dict = {
+                          "episode_score": episode_reward,
+                          "episode_length": episode_length,
+                        }
+            wandb.log({mode: episode_log_dict}, step=trainer.total_it)
+            episode_reward = 0.0 
             episode_length = 0
 
 
@@ -601,6 +599,7 @@ def train(config: TrainConfig):
             handle_timeout_termination=True
             )
 
+    trainer.total_it = 0
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
     online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection")
 
