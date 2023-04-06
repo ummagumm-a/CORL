@@ -360,7 +360,7 @@ class TD3_BC:  # noqa
 #            lmbda = self.alpha / q.abs().mean().detach()
 
             penalty = F.mse_loss(pi, action)
-            wandb.log({"penalty": penalty})
+            log_dict["penalty"] = penalty.item()
 #            actor_loss = -lmbda * q.mean() + F.mse_loss(pi, action)
             actor_loss = -q.mean() / q.abs().mean().detach() + trainer.alpha * penalty
             log_dict["actor_loss"] = actor_loss.item()
@@ -478,7 +478,11 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
             batch = tuple(map(lambda x: x.to(torch.float32), batch))
             log_dict = trainer.train(batch)
+            log_dict["alpha"] = trainer.alpha
             wandb.log({"online_finetune": log_dict}, step=trainer.total_it)
+
+            traner.alpha *= decay_rate
+
 
         # For logging
         episode_reward += reward
@@ -607,15 +611,6 @@ def train(config: TrainConfig):
 
     # Finetune online with data collected from interactions with the environment
     online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "online_finetune", decay_rate=decay_rate)
-           
-
-
-
-
-    
-
-
-
 
 
 if __name__ == "__main__":
