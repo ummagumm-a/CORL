@@ -448,11 +448,11 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
             wandb.log({mode + "/": eval_log_dict}, step=trainer.total_it)
 
 
-def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str, decay_rate:float = None):
+def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str, episode_num: int, decay_rate:float = None):
     state, done = env.reset(), False
     episode_reward = 0.0
     episode_length = 0
-    for _ in tqdm.tqdm(range(n_timesteps), desc=mode):
+    for i in tqdm.tqdm(range(n_timesteps), desc=mode):
         action = trainer.actor.act(state, device=config.device)
         noise = np.random.normal(0, scale=config.expl_noise, size=action.shape)
         noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
@@ -460,6 +460,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
         action = action.clip(-trainer.max_action, trainer.max_action)
 
         next_state, reward, done, info = env.step(action)
+        print("returned done:", done)
 
         replay_buffer.add(state, next_state, action, reward, done, [info])
 
@@ -479,9 +480,9 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
 
         # For logging
         episode_reward += reward
-        episode_length = 0
+        episode_length += 1
 
-        if done:
+        if done or i == n_timesteps - 1:
             state, done = env.reset(), False
             # If done - log info about current episode to wandb
             # and reset counters
@@ -490,9 +491,12 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
                           "episode_score": episode_reward,
                           "episode_length": episode_length,
                         }
-            wandb.log({mode + "/": episode_log_dict}, step=trainer.total_it)
+            wandb.log({mode + "/": episode_log_dict}, step=episode_num)
             episode_reward = 0.0 
             episode_length = 0
+            episode_num += 1
+
+    return episode_num
 
 
 @pyrallis.wrap()
@@ -601,10 +605,10 @@ def train(config: TrainConfig):
 
     trainer.total_it = 0
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
-    online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection")
+    episode_num = online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection", 0)
 
     # Finetune online with data collected from interactions with the environment
-    online_finetune(config, env, replay_buffer, trainer, config.finetune_timesteps, "online_finetune", decay_rate=decay_rate)
+    episode_num = online_finetune(config, env, replay_buffer, trainer, config.finetune_timesteps, "online_finetune", episode_num, decay_rate=decay_rate)
 
     wandb.finish()
 
