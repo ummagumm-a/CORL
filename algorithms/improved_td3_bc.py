@@ -16,7 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb
-from stable_baselines3.buffers import ReplayBuffer
+from stable_baselines3.buffers import ReplayBuffer as sb3_ReplayBuffer
 
 TensorBatch = List[torch.Tensor]
 
@@ -48,6 +48,11 @@ class TrainConfig:
     normalize_reward: bool = False  # Normalize reward
     # Improved TD3 + BC
     refinement_lambda: float = 5
+    refinement_timesteps: int = 250000
+    alpha_start: float = 0.4
+    alpha_end: float = 0.2
+    buffer_collections_timesteps: int = 5000
+    finetune_timesteps: int = 245000
     # Wandb logging
     project: str = "CORL"
     group: str = "TD3_BC-D4RL"
@@ -532,14 +537,22 @@ def train(config: TrainConfig):
         policy_file = Path(config.load_model)
         trainer.load_state_dict(torch.load(policy_file))
         actor = trainer.actor
+    else:
+        # To speed up experiments I train a model only once, save its weights
+        # and then just reuse it in further steps
 
-    # Offline Training
-    offline_train(config, replay_buffer, trainer)
+        # Offline Training
+        offline_train(config, replay_buffer, trainer)
 
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
     offline_train(config, replay_buffer, trainer)
 
+    decay_rate = np.exp(np.log(config.alpha_start / config.alpha_end) / config.finetune_timesteps)
+    trainer.alpha = config.alpha_start
+
+
+    
 
 
 
