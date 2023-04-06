@@ -31,7 +31,7 @@ class TrainConfig:
     eval_freq: int = int(5e3)  # How often (time steps) we evaluate
     n_episodes: int = 10  # How many episodes run during evaluation
 #    max_timesteps: int = int(1e6)  # Max time steps to run environment
-    max_timesteps: int = int(3e5)  # Max time steps to run environment
+    max_timesteps: int = int(1e6)  # Max time steps to run environment
     checkpoints_path: Optional[str] = None  # Save path
     load_model: str = ""  # Model load file name, "" doesn't load
     # TD3
@@ -49,7 +49,7 @@ class TrainConfig:
     normalize_reward: bool = False  # Normalize reward
     # Improved TD3 + BC
     refinement_lambda: float = 5
-    refinement_timesteps: int = 250000
+    refinement_timesteps: int = 0
     alpha_start: float = 0.4
     alpha_end: float = 0.2
     buffer_collections_timesteps: int = 5000
@@ -294,6 +294,7 @@ class TD3_BC:  # noqa
         policy_freq: int = 2,
         alpha: float = 2.5,
         device: str = "cpu",
+        update_critic: bool = True
     ):
         self.actor = actor
         self.actor_target = copy.deepcopy(actor)
@@ -347,11 +348,15 @@ class TD3_BC:  # noqa
         critic_loss = F.mse_loss(current_q1, target_q) + F.mse_loss(current_q2, target_q)
         log_dict["critic_loss"] = critic_loss.item()
         # Optimize the critic
-        self.critic_1_optimizer.zero_grad()
-        self.critic_2_optimizer.zero_grad()
-        critic_loss.backward()
-        self.critic_1_optimizer.step()
-        self.critic_2_optimizer.step()
+        if update_critic:
+            self.critic_1_optimizer.zero_grad()
+            self.critic_2_optimizer.zero_grad()
+            critic_loss.backward()
+            self.critic_1_optimizer.step()
+            self.critic_2_optimizer.step()
+        else:
+            assert all(map(lambda x: torch.all(x[0] == x[1]), zip(critic_1.parameters(), critic_1_target.parameters())))
+            assert all(map(lambda x: torch.all(x[0] == x[1]), zip(critic_2.parameters(), critic_2_target.parameters())))
 
         # Delayed actor updates
         if self.total_it % self.policy_freq == 0:
