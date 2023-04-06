@@ -440,7 +440,8 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
                 f"{eval_score:.3f} , D4RL score: {normalized_eval_score:.3f}"
             )
             print("---------------------------------------")
-            if config.checkpoints_path and len(evaluations) != 1 and max(evaluations) < normalized_eval_score:
+            if config.checkpoints_path and (len(evaluations) == 1 or max(evaluations[:-1]) < normalized_eval_score):
+                print("Saving")
                 torch.save(
                     trainer.state_dict(),
                     os.path.join(config.checkpoints_path, f"best_checkpoint.pt"),
