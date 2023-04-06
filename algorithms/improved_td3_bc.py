@@ -398,6 +398,58 @@ class TD3_BC:  # noqa
         self.total_it = state_dict["total_it"]
 
 
+def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3_BC, ):
+    wandb_init(asdict(config))
+
+    evaluations = []
+    for t in range(int(config.max_timesteps)):
+        batch = replay_buffer.sample(config.batch_size)
+        batch = [b.to(config.device) for b in batch]
+        log_dict = trainer.train(batch)
+        wandb.log(log_dict, step=trainer.total_it)
+        # Evaluate episode
+        if (t + 1) % config.eval_freq == 0:
+            print(f"Time steps: {t + 1}")
+            eval_scores, eval_lengths = eval_actor(
+                env,
+                actor,
+                device=config.device,
+                n_episodes=config.n_episodes,
+                seed=config.seed,
+            )
+            eval_score = eval_scores.mean()
+            normalized_eval_score = env.get_normalized_score(eval_score) * 100.0
+            evaluations.append(normalized_eval_score)
+            print("---------------------------------------")
+            print(
+                f"Evaluation over {config.n_episodes} episodes: "
+                f"{eval_score:.3f} , D4RL score: {normalized_eval_score:.3f}"
+            )
+            print("---------------------------------------")
+            if config.checkpoint_path and len(evaluations) != 1 and max(evaluations) < normalized_eval_score:
+                torch.save(
+                    trainer.state_dict(),
+                    os.path.join(config.checkpoints_path, f"best_checkpoint.pt"),
+                )
+                wandb.save(os.path.join(config.checkpoints_path, f"best_checkpoint.pt"))
+
+            wandb.log(
+                {
+                    "training/d4rl_normalized_score": normalized_eval_score,
+                    "training/eval_score_mean": eval_scores.mean(),
+                    "training/eval_score_min": eval_scores.min(),
+                    "training/eval_lengths_mean": eval_lengths.mean(),
+                    "training/eval_lengths_min": eval_lengths.min(),
+                },
+                step=trainer.total_it,
+            )
+
+    wandb.finish()
+
+
+def online_train(config, replay_buffer, trainer):
+
+
 @pyrallis.wrap()
 def train(config: TrainConfig):
     env = gym.make(config.env)
@@ -481,56 +533,14 @@ def train(config: TrainConfig):
         trainer.load_state_dict(torch.load(policy_file))
         actor = trainer.actor
 
-    wandb_init(asdict(config))
-
     # Offline Training
-    evaluations = []
-    for t in range(int(config.max_timesteps)):
-        batch = replay_buffer.sample(config.batch_size)
-        batch = [b.to(config.device) for b in batch]
-        log_dict = trainer.train(batch)
-        wandb.log(log_dict, step=trainer.total_it)
-        # Evaluate episode
-        if (t + 1) % config.eval_freq == 0:
-            print(f"Time steps: {t + 1}")
-            eval_scores, eval_lengths = eval_actor(
-                env,
-                actor,
-                device=config.device,
-                n_episodes=config.n_episodes,
-                seed=config.seed,
-            )
-            eval_score = eval_scores.mean()
-            normalized_eval_score = env.get_normalized_score(eval_score) * 100.0
-            evaluations.append(normalized_eval_score)
-            print("---------------------------------------")
-            print(
-                f"Evaluation over {config.n_episodes} episodes: "
-                f"{eval_score:.3f} , D4RL score: {normalized_eval_score:.3f}"
-            )
-            print("---------------------------------------")
-            if config.checkpoint_path and len(evaluations) != 1 and max(evaluations) < normalized_eval_score:
-                torch.save(
-                    trainer.state_dict(),
-                    os.path.join(config.checkpoints_path, f"best_checkpoint.pt"),
-                )
-                wandb.save(os.path.join(config.checkpoints_path, f"best_checkpoint.pt"))
-
-            wandb.log(
-                {
-                    "training/d4rl_normalized_score": normalized_eval_score,
-                    "training/eval_score_mean": eval_scores.mean(),
-                    "training/eval_score_min": eval_scores.min(),
-                    "training/eval_lengths_mean": eval_lengths.mean(),
-                    "training/eval_lengths_min": eval_lengths.min(),
-                },
-                step=trainer.total_it,
-            )
-
-    wandb.finish()
+    offline_train(config, replay_buffer, trainer)
 
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
+    offline_train(config, replay_buffer, trainer)
+
+
 
 
 
