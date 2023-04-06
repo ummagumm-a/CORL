@@ -493,7 +493,7 @@ def train(config: TrainConfig):
         # Evaluate episode
         if (t + 1) % config.eval_freq == 0:
             print(f"Time steps: {t + 1}")
-            eval_scores = eval_actor(
+            eval_scores, eval_lengths = eval_actor(
                 env,
                 actor,
                 device=config.device,
@@ -518,9 +518,11 @@ def train(config: TrainConfig):
 
             wandb.log(
                 {
-                    "training/d4rl_normalized_score": normalized_eval_score
-                    "training/eval_score": eval_score
-                    "training/d4rl_normalized_score": normalized_eval_score
+                    "training/d4rl_normalized_score": normalized_eval_score,
+                    "training/eval_score_mean": eval_scores.mean(),
+                    "training/eval_score_min": eval_scores.min(),
+                    "training/eval_lengths_mean": eval_lengths.mean(),
+                    "training/eval_lengths_min": eval_lengths.min(),
                 },
                 step=trainer.total_it,
             )
