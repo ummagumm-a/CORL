@@ -477,7 +477,8 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             batch_ = replay_buffer.sample(config.batch_size)
             batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
             batch = tuple(map(lambda x: x.to(torch.float32), batch))
-            trainer.train(batch)
+            log_dict = trainer.train(batch)
+            wandb.log({"online_finetune": log_dict}, step=trainer.total_it)
 
         # For logging
         episode_reward += reward
