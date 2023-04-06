@@ -410,7 +410,7 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
         batch = replay_buffer.sample(config.batch_size)
         batch = [b.to(config.device) for b in batch]
         log_dict = trainer.train(batch)
-        wandb.log({mode: log_dict}, step=trainer.total_it)
+        wandb.log({mode + "/": log_dict}, step=trainer.total_it)
         # Evaluate episode
         if (t + 1) % config.eval_freq == 0:
             print(f"Time steps: {t + 1}")
@@ -445,7 +445,7 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
                    "eval_lengths_min": eval_lengths.min(),
                 }
 
-            wandb.log({mode: eval_log_dict}, step=trainer.total_it)
+            wandb.log({mode + "/": eval_log_dict}, step=trainer.total_it)
 
 
 def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str, decay_rate:float = None):
@@ -472,7 +472,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             batch = tuple(map(lambda x: x.to(torch.float32), batch))
             log_dict = trainer.train(batch)
             log_dict["alpha"] = trainer.alpha
-            wandb.log({mode: log_dict}, step=trainer.total_it)
+            wandb.log({mode + "/": log_dict}, step=trainer.total_it)
 
             trainer.alpha *= decay_rate
 
@@ -490,7 +490,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
                           "episode_score": episode_reward,
                           "episode_length": episode_length,
                         }
-            wandb.log({mode: episode_log_dict}, step=trainer.total_it)
+            wandb.log({mode + "/": episode_log_dict}, step=trainer.total_it)
             episode_reward = 0.0 
             episode_length = 0
 
