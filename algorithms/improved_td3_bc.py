@@ -403,7 +403,7 @@ class TD3_BC:  # noqa
         self.total_it = state_dict["total_it"]
 
 
-def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3_BC, ):
+def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3_BC, mode: str):
     wandb_init(asdict(config))
 
     evaluations = []
@@ -440,11 +440,11 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
 
             wandb.log(
                 {
-                    "training/d4rl_normalized_score": normalized_eval_score,
-                    "training/eval_score_mean": eval_scores.mean(),
-                    "training/eval_score_min": eval_scores.min(),
-                    "training/eval_lengths_mean": eval_lengths.mean(),
-                    "training/eval_lengths_min": eval_lengths.min(),
+                   f"{mode}/d4rl_normalized_score": normalized_eval_score,
+                   f"{mode}/eval_score_mean": eval_scores.mean(),
+                   f"{mode}/eval_score_min": eval_scores.min(),
+                   f"{mode}/eval_lengths_mean": eval_lengths.mean(),
+                   f"{mode}/eval_lengths_min": eval_lengths.min(),
                 },
                 step=trainer.total_it,
             )
@@ -542,14 +542,40 @@ def train(config: TrainConfig):
         # and then just reuse it in further steps
 
         # Offline Training
-        offline_train(config, replay_buffer, trainer)
+        offline_train(config, replay_buffer, trainer, 'offline_training')
 
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
-    offline_train(config, replay_buffer, trainer)
+    offline_train(config, replay_buffer, trainer, 'offline_refinement')
 
     decay_rate = np.exp(np.log(config.alpha_start / config.alpha_end) / config.finetune_timesteps)
     trainer.alpha = config.alpha_start
+
+    replay_buffer = sb3_ReplayBuffer(
+            config.buffer_size,
+            env.observation_space,
+            env.action_space,
+            config.device,
+            handle_timeout_termination=True
+            )
+
+    # Initialize Buffer with 'buffer_collections_timesteps' timesteps
+    state, done = env.reset(), False
+    episode_rewards = []
+    episode_length = 0
+    for _ in range(config.buffer_collections_timesteps):
+        noise = (torch.randn_like(action) * self.policy_noise).clamp(
+            -self.noise_clip, self.noise_clip
+        )
+
+        next_action = (self.actor_target(next_state) + noise).clamp(
+            -self.max_action, self.max_action
+        )
+
+        if done:
+
+
+
 
 
     
