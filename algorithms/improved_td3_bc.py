@@ -317,6 +317,11 @@ class TD3_BC:  # noqa
         self.total_it = 0
         self.device = device
 
+        # The original paper reports that they don't update critic model
+        # during refinement steps.
+        # Therefore I added a flag to control this behaviour
+        self.update_critic = update_critic
+
     def train(self, batch: TensorBatch) -> Dict[str, float]:
         log_dict = {}
         self.total_it += 1
@@ -348,7 +353,7 @@ class TD3_BC:  # noqa
         critic_loss = F.mse_loss(current_q1, target_q) + F.mse_loss(current_q2, target_q)
         log_dict["critic_loss"] = critic_loss.item()
         # Optimize the critic
-        if update_critic:
+        if self.update_critic:
             self.critic_1_optimizer.zero_grad()
             self.critic_2_optimizer.zero_grad()
             critic_loss.backward()
@@ -485,6 +490,40 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
 
             trainer.alpha *= decay_rate
 
+            # Evaluate episode
+            if (i + 1) % config.eval_freq == 0:
+                print(f"Time steps: {i + 1}")
+                eval_scores, eval_lengths = eval_actor(
+                    env,
+                    trainer.actor,
+                    device=config.device,
+                    n_episodes=config.n_episodes,
+                    seed=config.seed,
+                )
+                eval_score = eval_scores.mean()
+                normalized_eval_score = env.get_normalized_score(eval_score) * 100.0
+                evaluations.append(normalized_eval_score)
+                print("---------------------------------------")
+                print(
+                    f"Evaluation over {config.n_episodes} episodes: "
+                    f"{eval_score:.3f} , D4RL score: {normalized_eval_score:.3f}"
+                )
+                print("---------------------------------------")
+                if config.checkpoints_path and len(evaluations) != 1 and max(evaluations) < normalized_eval_score:
+                    torch.save(
+                        trainer.state_dict(),
+                        os.path.join(config.checkpoints_path, f"best_checkpoint.pt"),
+                    )
+                    wandb.save(os.path.join(config.checkpoints_path, f"best_checkpoint.pt"))
+
+                log.update({
+                       "d4rl_normalized_score": normalized_eval_score,
+                       "eval_score_mean": eval_scores.mean(),
+                       "eval_score_min": eval_scores.min(),
+                       "eval_lengths_mean": eval_lengths.mean(),
+                       "eval_lengths_min": eval_lengths.min(),
+                    })
+
 
         # For logging
         episode_reward += reward
@@ -496,8 +535,8 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             # and reset counters
             print(f"Done {mode}:", episode_num, episode_reward, episode_length)
             log.update({
-                     "episode_score": episode_reward,
-                     "episode_length": episode_length,
+                     "train_episode_score": episode_reward,
+                     "train_episode_length": episode_length,
                    })
             episode_reward = 0.0 
             episode_length = 0
