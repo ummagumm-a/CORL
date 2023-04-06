@@ -189,17 +189,21 @@ def eval_actor(
     env.seed(seed)
     actor.eval()
     episode_rewards = []
+    episode_lengths = []
     for _ in range(n_episodes):
         state, done = env.reset(), False
         episode_reward = 0.0
+        episode_length = 0
         while not done:
             action = actor.act(state, device)
             state, reward, done, _ = env.step(action)
             episode_reward += reward
+            episode_length += 1
         episode_rewards.append(episode_reward)
+        episode_lengths.append(episode_length)
 
     actor.train()
-    return np.asarray(episode_rewards)
+    return np.asarray(episode_rewards), np.asarray(episode_length)
 
 
 def return_reward_range(dataset, max_episode_steps):
@@ -513,7 +517,11 @@ def train(config: TrainConfig):
                 wandb.save(os.path.join(config.checkpoints_path, f"best_checkpoint.pt"))
 
             wandb.log(
-                {"d4rl_normalized_score": normalized_eval_score},
+                {
+                    "training/d4rl_normalized_score": normalized_eval_score
+                    "training/eval_score": eval_score
+                    "training/d4rl_normalized_score": normalized_eval_score
+                },
                 step=trainer.total_it,
             )
 
