@@ -417,7 +417,7 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
             print(f"Time steps: {t + 1}")
             eval_scores, eval_lengths = eval_actor(
                 env,
-                actor,
+                trainer.actor,
                 device=config.device,
                 n_episodes=config.n_episodes,
                 seed=config.seed,
@@ -572,7 +572,6 @@ def train(config: TrainConfig):
     if config.load_model != "":
         policy_file = Path(config.load_model)
         trainer.load_state_dict(torch.load(policy_file))
-        actor = trainer.actor
     else:
         # To speed up experiments I train a model only once, save its weights
         # and then just reuse it in further steps
