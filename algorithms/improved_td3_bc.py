@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb
+from stable_baselines3.buffers import ReplayBuffer
 
 TensorBatch = List[torch.Tensor]
 
@@ -24,7 +25,7 @@ TensorBatch = List[torch.Tensor]
 class TrainConfig:
     # Experiment
     device: str = "cuda"
-    env: str = "halfcheetah-medium-expert-v2"  # OpenAI gym environment name
+    env: str = "hopper-medium-replay-v2"  # OpenAI gym environment name
     seed: int = 0  # Sets Gym, PyTorch and Numpy seeds
     eval_freq: int = int(5e3)  # How often (time steps) we evaluate
     n_episodes: int = 10  # How many episodes run during evaluation
@@ -44,6 +45,8 @@ class TrainConfig:
     alpha: float = 2.5  # Coefficient for Q function in actor loss
     normalize: bool = True  # Normalize states
     normalize_reward: bool = False  # Normalize reward
+    # Improved TD3 + BC
+    refinement_lambda: float = 5
     # Wandb logging
     project: str = "CORL"
     group: str = "TD3_BC-D4RL"
@@ -344,9 +347,12 @@ class TD3_BC:  # noqa
             # Compute actor loss
             pi = self.actor(state)
             q = self.critic_1(state, pi)
-            lmbda = self.alpha / q.abs().mean().detach()
+#            lmbda = self.alpha / q.abs().mean().detach()
 
-            actor_loss = -lmbda * q.mean() + F.mse_loss(pi, action)
+            penalty = F.mse_loss(pi, action)
+            wandb.log({"penalty": penalty})
+#            actor_loss = -lmbda * q.mean() + F.mse_loss(pi, action)
+            actor_loss = q.mean() / q.abs().mean().detach() + trainer.alpha * penalty
             log_dict["actor_loss"] = actor_loss.item()
             # Optimize the actor
             self.actor_optimizer.zero_grad()
@@ -472,6 +478,7 @@ def train(config: TrainConfig):
 
     wandb_init(asdict(config))
 
+    # Offline Training
     evaluations = []
     for t in range(int(config.max_timesteps)):
         batch = replay_buffer.sample(config.batch_size)
@@ -505,6 +512,13 @@ def train(config: TrainConfig):
                 {"d4rl_normalized_score": normalized_eval_score},
                 step=trainer.total_it,
             )
+
+    wandb.finish()
+
+    # Policy Refinement
+    trainer.alpha /= config.refinement_lambda
+
+
 
 
 if __name__ == "__main__":
