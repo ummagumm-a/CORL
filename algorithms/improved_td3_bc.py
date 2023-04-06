@@ -460,7 +460,6 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
         action = action.clip(-trainer.max_action, trainer.max_action)
 
         next_state, reward, done, info = env.step(action)
-        print("returned done:", done)
 
         replay_buffer.add(state, next_state, action, reward, done, [info])
 
@@ -482,11 +481,11 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
         episode_reward += reward
         episode_length += 1
 
-        if done or i == n_timesteps - 1:
+        if done:
             state, done = env.reset(), False
             # If done - log info about current episode to wandb
             # and reset counters
-            print("Done:", episode_reward, episode_length)
+            print(f"Done {mode}:", episode_num, episode_reward, episode_length)
             episode_log_dict = {
                           "episode_score": episode_reward,
                           "episode_length": episode_length,
