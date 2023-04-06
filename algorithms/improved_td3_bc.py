@@ -362,7 +362,7 @@ class TD3_BC:  # noqa
             penalty = F.mse_loss(pi, action)
             log_dict["penalty"] = penalty.item()
 #            actor_loss = -lmbda * q.mean() + F.mse_loss(pi, action)
-            actor_loss = -q.mean() / q.abs().mean().detach() + trainer.alpha * penalty
+            actor_loss = -q.mean() / q.abs().mean().detach() + self.alpha * penalty
             log_dict["actor_loss"] = actor_loss.item()
             # Optimize the actor
             self.actor_optimizer.zero_grad()
@@ -453,13 +453,13 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
 
 
 def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str):
-    wandb.init(
+    with wandb.init(
         project=config.project,
         group=config.group,
         name=config.name,
-        job_type="finetune"
+        job_type="finetune",
         id=str(uuid.uuid4()),
-        ):
+    ):
         state, done = env.reset(), False
         episode_reward = 0.0
         episode_length = 0
