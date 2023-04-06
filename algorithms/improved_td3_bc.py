@@ -473,7 +473,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             batch = tuple(map(lambda x: x.to(torch.float32), batch))
             log_dict = trainer.train(batch)
             log_dict["alpha"] = trainer.alpha
-            log |= log_dict
+            log.update(log_dict)
 
             trainer.alpha *= decay_rate
 
@@ -487,10 +487,10 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             # If done - log info about current episode to wandb
             # and reset counters
             print(f"Done {mode}:", episode_num, episode_reward, episode_length)
-            log |= {
+            log.update({
                      "episode_score": episode_reward,
                      "episode_length": episode_length,
-                   }
+                   })
             episode_reward = 0.0 
             episode_length = 0
             episode_num += 1
