@@ -453,6 +453,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
     episode_reward = 0.0
     episode_length = 0
     for i in tqdm.tqdm(range(n_timesteps), desc=mode):
+        log = {}
         action = trainer.actor.act(state, device=config.device)
         noise = np.random.normal(0, scale=config.expl_noise, size=action.shape)
         noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
@@ -472,7 +473,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             batch = tuple(map(lambda x: x.to(torch.float32), batch))
             log_dict = trainer.train(batch)
             log_dict["alpha"] = trainer.alpha
-            wandb.log({mode + "/": log_dict}, step=trainer.total_it)
+            log |= log_dict
 
             trainer.alpha *= decay_rate
 
@@ -486,15 +487,16 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             # If done - log info about current episode to wandb
             # and reset counters
             print(f"Done {mode}:", episode_num, episode_reward, episode_length)
-            episode_log_dict = {
-                          "episode_score": episode_reward,
-                          "episode_length": episode_length,
-                        }
-            print({mode + "/": episode_log_dict}, episode_num)
-            wandb.log({mode + "/": episode_log_dict}, step=episode_num)
+            log |= {
+                     "episode_score": episode_reward,
+                     "episode_length": episode_length,
+                   }
             episode_reward = 0.0 
             episode_length = 0
             episode_num += 1
+
+        if len(log) != 0:
+            wandb.log({mode + "/": log})
 
     return episode_num
 
@@ -604,14 +606,14 @@ def train(config: TrainConfig):
             handle_timeout_termination=True
             )
 
-    trainer.total_it = 0
+#    trainer.total_it = 0
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
     episode_num = online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
 
     # Finetune online with data collected from interactions with the environment
     episode_num = online_finetune(config, env, replay_buffer, trainer, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
 
-#    wandb.finish()
+    wandb.finish()
 
 if __name__ == "__main__":
     train()
