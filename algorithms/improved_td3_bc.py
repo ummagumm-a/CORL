@@ -453,7 +453,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
     state, done = env.reset(), False
     episode_reward = 0.0
     episode_length = 0
-    for _ in tqdm.tqdm(range(n_timesteps), desc=f"{mode}:  "):
+    for _ in tqdm.tqdm(range(n_timesteps), desc=mode):
         action = trainer.actor.act(state, device=config.device)
         noise = np.random.normal(0, scale=config.expl_noise, size=action.shape)
         noise = noise.clip(-trainer.noise_clip, trainer.noise_clip)
@@ -605,7 +605,7 @@ def train(config: TrainConfig):
     online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection")
 
     # Finetune online with data collected from interactions with the environment
-    online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "online_finetune", decay_rate=decay_rate)
+    online_finetune(config, env, replay_buffer, trainer, config.finetune_timesteps, "online_finetune", decay_rate=decay_rate)
 
     wandb.finish()
 
