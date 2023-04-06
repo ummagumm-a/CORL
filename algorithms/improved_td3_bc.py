@@ -490,6 +490,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
                           "episode_score": episode_reward,
                           "episode_length": episode_length,
                         }
+            print({mode + "/": episode_log_dict}, episode_num)
             wandb.log({mode + "/": episode_log_dict}, step=episode_num)
             episode_reward = 0.0 
             episode_length = 0
@@ -573,43 +574,45 @@ def train(config: TrainConfig):
     print(f"Training TD3 + BC, Env: {config.env}, Seed: {seed}")
     print("---------------------------------------")
 
-    wandb_init(asdict(config))
-    # Initialize actor
-    trainer = TD3_BC(**kwargs)
+#    wandb_init(asdict(config))
+    with wandb.init(project=config.project, name=config.name, group=config.group):
+        # Initialize actor
+        trainer = TD3_BC(**kwargs)
 
-    if config.load_model != "":
-        policy_file = Path(config.load_model)
-        trainer.load_state_dict(torch.load(policy_file))
-    else:
-        # To speed up experiments I train a model only once, save its weights
-        # and then just reuse it in further steps
+        if config.load_model != "":
+            policy_file = Path(config.load_model)
+            trainer.load_state_dict(torch.load(policy_file))
+        else:
+            # To speed up experiments I train a model only once, save its weights
+            # and then just reuse it in further steps
 
-        # Offline Training
-        offline_train(config, replay_buffer, trainer, env, 'offline_training')
+            # Offline Training
+            offline_train(config, replay_buffer, trainer, env, 'offline_training')
 
-    # Policy Refinement
-    trainer.alpha /= config.refinement_lambda
-    offline_train(config, replay_buffer, trainer, env, 'offline_refinement')
+        # Policy Refinement
+        trainer.alpha /= config.refinement_lambda
+        offline_train(config, replay_buffer, trainer, env, 'offline_refinement')
 
-    decay_rate = np.exp(np.log(config.alpha_start / config.alpha_end) / config.finetune_timesteps)
-    trainer.alpha = config.alpha_start
+        decay_rate = np.exp(np.log(config.alpha_end / config.alpha_start) / config.finetune_timesteps)
+        print("decay_rate", decay_rate)
+        trainer.alpha = config.alpha_start
 
-    replay_buffer = sb3_ReplayBuffer(
-            config.buffer_size,
-            env.observation_space,
-            env.action_space,
-            config.device,
-            handle_timeout_termination=True
-            )
+        replay_buffer = sb3_ReplayBuffer(
+                config.buffer_size,
+                env.observation_space,
+                env.action_space,
+                config.device,
+                handle_timeout_termination=True
+                )
 
-    trainer.total_it = 0
-    # Initialize Buffer with 'buffer_collections_timesteps' timesteps
-    episode_num = online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection", 0)
+        trainer.total_it = 0
+        # Initialize Buffer with 'buffer_collections_timesteps' timesteps
+        episode_num = online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
 
-    # Finetune online with data collected from interactions with the environment
-    episode_num = online_finetune(config, env, replay_buffer, trainer, config.finetune_timesteps, "online_finetune", episode_num, decay_rate=decay_rate)
+        # Finetune online with data collected from interactions with the environment
+        episode_num = online_finetune(config, env, replay_buffer, trainer, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
 
-    wandb.finish()
+#    wandb.finish()
 
 if __name__ == "__main__":
     train()
