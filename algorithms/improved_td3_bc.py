@@ -2,7 +2,7 @@
 # https://arxiv.org/pdf/2106.06860.pdf
 from typing import Any, Dict, List, Optional, Tuple, Union
 import copy
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import os
 from pathlib import Path
 import random
@@ -11,6 +11,7 @@ import uuid
 import d4rl
 import gym
 import numpy as np
+import optuna
 import pyrallis
 import tqdm
 import torch
@@ -662,7 +663,7 @@ def train_helper(config: TrainConfig):
     trainer.alpha /= config.refinement_lambda
     trainer.update_critic = False
     refinement_evaluations = offline_train(config, replay_buffer, trainer, env, 'offline_refinement', config.refinement_timesteps)
-    if tune_refinement:
+    if config.tune_refinement:
         wandb.finish()
         return max(refinement_evaluations)
 
@@ -691,8 +692,24 @@ def train_helper(config: TrainConfig):
 
     wandb.finish()
 
+
+class Objective:
+    def __init__(self, config):
+        self.config = config
+
+    def __call__(self, trial):
+        new_config = replace(self.config)
+        new_config.refinement_lambda = trial.suggest_float('refinement_lambda', .5, 5.)
+
+
+
+
 @pyrallis.wrap()
 def train(config: TrainConfig):
+    if config.tune_refinement:
+        study = optuna.load_study(study_name="tune_refinement", storage="mysql://root@localhost/tune_refinement")
+        study.optimize
+        
     return train_helper(config)
 
 if __name__ == "__main__":
