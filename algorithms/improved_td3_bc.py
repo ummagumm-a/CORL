@@ -718,7 +718,7 @@ class Objective:
 @pyrallis.wrap()
 def train(config: TrainConfig):
     if config.tune_refinement:
-        study = optuna.load_study(study_name="tune_refinement", storage="mysql://root@localhost/tune_refinement")
+        study = optuna.load_study(study_name="improved_td3_bc_tune", storage="mysql://root@localhost/improved_td3_bc_tune")
         study.optimize(Objective(config, num_seeds=5), num_trials=100)
         
     return train_helper(config)
