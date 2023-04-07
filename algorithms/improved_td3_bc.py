@@ -657,7 +657,7 @@ def train_helper(config: TrainConfig):
         env,
         trainer.actor,
         device=config.device,
-        n_episodes=config.n_episodes * 5, # for more reliability
+        n_episodes=config.n_episodes, # for more reliability
         seed=config.seed,
     )
     initial_score = initial_scores.mean()
@@ -734,8 +734,14 @@ class Objective:
 @pyrallis.wrap()
 def train(config: TrainConfig):
     if config.hyper_tune:
-        study = optuna.load_study(study_name="improved_td3_bc_tune", storage="mysql://root@localhost/improved_td3_bc_tune")
-        study.optimize(Objective(config, num_seeds=2), n_trials=2)
+        if "expert" in config.env:
+            study = optuna.load_study(study_name="improved_td3_bc_tune_expert", storage="mysql://root@localhost/improved_td3_bc_tune_expert")
+        elif "replay" in config.env:
+            study = optuna.load_study(study_name="improved_td3_bc_tune_replay", storage="mysql://root@localhost/improved_td3_bc_tune_replay")
+        else:
+            raise Exception(f"Cannot tune for {config.env}")
+
+        study.optimize(Objective(config, num_seeds=5), n_trials=4)
     else:    
         return train_helper(config)
 
