@@ -58,6 +58,7 @@ class TrainConfig:
     project: str = "CORL"
     group: str = "IMPROVED_TD3_BC-D4RL_2.0"
     name: str = "IMPROVED_TD3_BC_2.0"
+    job_type: str = "default"
 
     def __post_init__(self):
         self.name = f"{self.name}-{self.env}-{str(uuid.uuid4())[:8]}"
@@ -183,6 +184,7 @@ def wandb_init(config: dict) -> None:
         project=config["project"],
         group=config["group"],
         name=config["name"],
+        job_type=config["job_type"],
         id=str(uuid.uuid4()),
     )
     wandb.run.save()
@@ -639,6 +641,13 @@ def train(config: TrainConfig):
 
         # Offline Training
         offline_train(config, replay_buffer, trainer, env, 'offline_training', config.max_timesteps)
+        # If the best model is saved during training - take it.
+        # Not sure, it may be a good engeneering decision, but the original paper does not mention such trick.
+        # Thus, it may be safer to not use it
+#        if config.checkpoints_path:
+#            policy_file = Path(config.load_model)
+#            trainer.load_state_dict(torch.load(policy_file))
+
 
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
@@ -646,6 +655,7 @@ def train(config: TrainConfig):
     offline_train(config, replay_buffer, trainer, env, 'offline_refinement', config.refinement_timesteps)
 
     trainer.update_critic = True
+    # We don't want to divide on zero
     if config.alpha_start == 0 or config.finetune_timesteps == 0:
         decay_rate = 0
     else:
