@@ -457,12 +457,15 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
 
             wandb.log({mode + "/": eval_log_dict}, step=trainer.total_it)
 
+    return evaluations
+
 
 def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str, episode_num: int, decay_rate:float = None):
     state, done = env.reset(), False
     episode_reward = 0.0
     episode_length = 0
     evaluations = []
+    training_rewards = []
     for i in tqdm.tqdm(range(n_timesteps), desc=mode):
         log = {}
         # The action is generated in the same way as in TD3_BC.train
@@ -539,6 +542,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
                      "train_episode_score": episode_reward,
                      "train_episode_length": episode_length,
                    })
+            training_rewards.append(episode_reward)
             episode_reward = 0.0 
             episode_length = 0
             episode_num += 1
@@ -546,11 +550,10 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
         if len(log) != 0:
             wandb.log({mode + "/": log})
 
-    return episode_num
+    return episode_num, training_rewards
 
 
-@pyrallis.wrap()
-def train(config: TrainConfig):
+def train_helper(config: TrainConfig):
     env = gym.make(config.env)
 
     state_dim = env.observation_space.shape[0]
@@ -637,7 +640,7 @@ def train(config: TrainConfig):
         # and then just reuse it in further steps
 
         # Offline Training
-        offline_train(config, replay_buffer, trainer, env, 'offline_training', config.max_timesteps)
+        offline_evaluations = offline_train(config, replay_buffer, trainer, env, 'offline_training', config.max_timesteps)
         # If the best model is saved during training - take it.
         # Not sure, it may be a good engeneering decision, but the original paper does not mention such trick.
         # Thus, it may be safer to not use it
@@ -645,11 +648,23 @@ def train(config: TrainConfig):
 #            policy_file = Path(config.load_model)
 #            trainer.load_state_dict(torch.load(policy_file))
 
+    initial_scores, _ = eval_actor(
+        env,
+        trainer.actor,
+        device=config.device,
+        n_episodes=config.n_episodes * 10, # for more reliability
+        seed=config.seed,
+    )
+    initial_score = initial_scores.mean()
+
 
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
     trainer.update_critic = False
-    offline_train(config, replay_buffer, trainer, env, 'offline_refinement', config.refinement_timesteps)
+    refinement_evaluations = offline_train(config, replay_buffer, trainer, env, 'offline_refinement', config.refinement_timesteps)
+    if tune_refinement:
+        wandb.finish()
+        return max(refinement_evaluations)
 
     trainer.update_critic = True
     # We don't want to divide on zero
@@ -669,12 +684,16 @@ def train(config: TrainConfig):
             )
 
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
-    episode_num = online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
+    episode_num, buffer_collection_rewards = online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
 
     # Finetune online with data collected from interactions with the environment
-    episode_num = online_finetune(config, env, replay_buffer, trainer, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
+    episode_num, finetune_rewards = online_finetune(config, env, replay_buffer, trainer, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
 
     wandb.finish()
+
+@pyrallis.wrap()
+def train(config: TrainConfig):
+    return train_helper(config)
 
 if __name__ == "__main__":
     train()
