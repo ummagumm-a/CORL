@@ -21,7 +21,7 @@ project: CORL
 seed: 0
 tau: 0.005
 refinement_lambda: 5 # taken from paper, need to tune
-refinement_timesteps: 50000 # Seems to be enough, need to tune
+refinement_timesteps: 100000 # Seems to be enough, need to tune
 alpha_start: 0.4 # taken from paper, need to tune
 alpha_end: 0.2 # taken from paper, need to tune
 buffer_collection_timesteps: 5000 # taken from paper, need to tune

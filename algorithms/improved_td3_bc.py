@@ -694,21 +694,32 @@ def train_helper(config: TrainConfig):
 
 
 class Objective:
-    def __init__(self, config):
+    def __init__(self, config, num_seeds):
         self.config = config
+        self.num_seeds = num_seeds
 
     def __call__(self, trial):
         new_config = replace(self.config)
-        new_config.refinement_lambda = trial.suggest_float('refinement_lambda', .5, 5.)
+        new_config.refinement_lambda = trial.suggest_float("refinement_lambda", 0.5, 100)
+        new_config.expl_noise = trial.suggest_float("expl_noise", 0, 1)
+        new_config.alpha_start = trial.suggest_float("alpha_start", 0, self.config.alpha)
+        new_config.alpha_end = trial.suggest_float("alpha_end", 0, new_config.alpha_start)
+        new_config.name = f"r_{new_config.refinement_lambda}_e_{new_config.expl_noise}_as_{new_config.alpha_start}_ae_{new_config.alpha_end}"
 
+        values = []
+        for i in range(self.num_seeds):
+            new_config.seed = i
+            value = train_helper(new_config)
+            values.append(value)
 
+        return sum(values) / len(values)
 
 
 @pyrallis.wrap()
 def train(config: TrainConfig):
     if config.tune_refinement:
         study = optuna.load_study(study_name="tune_refinement", storage="mysql://root@localhost/tune_refinement")
-        study.optimize
+        study.optimize(Objective(config, num_seeds=5), num_trials=100)
         
     return train_helper(config)
 
