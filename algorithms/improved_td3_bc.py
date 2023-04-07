@@ -646,7 +646,10 @@ def train(config: TrainConfig):
     offline_train(config, replay_buffer, trainer, env, 'offline_refinement', config.refinement_timesteps)
 
     trainer.update_critic = True
-    decay_rate = np.exp(np.log(config.alpha_end / config.alpha_start) / config.finetune_timesteps)
+    if config.alpha_start == 0 or config.finetune_timesteps == 0:
+        decay_rate = 0
+    else:
+        decay_rate = np.exp(np.log(config.alpha_end / config.alpha_start) / config.finetune_timesteps)
     print("decay_rate", decay_rate)
     trainer.alpha = config.alpha_start
 

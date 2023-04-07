@@ -1,0 +1,29 @@
+alpha: 0.4 # Taken from the paper, try to tune
+batch_size: 256
+buffer_size: 10000000
+checkpoints_path: null
+device: cuda
+discount: 0.99
+env: hopper-medium-replay-v0
+eval_freq: 5000
+expl_noise: 0.1 # try to tune
+group: td3-bc-hopper-medium-replay-v2-multiseed-v0
+load_model: ''
+max_timesteps: 300000 # Noticed that this number is enough
+n_episodes: 10
+name: TD3-BC
+noise_clip: 0.5
+normalize: true
+normalize_reward: false
+policy_freq: 2
+policy_noise: 0.2
+project: CORL
+seed: 0
+tau: 0.005
+refinement_lambda: 5 # taken from paper, need to tune
+refinement_timesteps: 50000 # Seems to be enough, need to tune
+alpha_start: 0.4 # taken from paper, need to tune
+alpha_end: 0.2 # taken from paper, need to tune
+buffer_collection_timesteps: 5000 # taken from paper, need to tune
+finetune_timesteps: 245000 # taken from paper, need to tune
+
