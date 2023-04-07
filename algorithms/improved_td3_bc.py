@@ -414,9 +414,9 @@ class TD3_BC:  # noqa
         self.total_it = state_dict["total_it"]
 
 
-def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3_BC, env, mode: str):
+def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3_BC, env, mode: str, n_timesteps: int):
     evaluations = []
-    for t in range(int(config.max_timesteps)):
+    for t in range(int(n_timesteps)):
         batch = replay_buffer.sample(config.batch_size)
         batch = [b.to(config.device) for b in batch]
         log_dict = trainer.train(batch)
@@ -629,6 +629,7 @@ def train(config: TrainConfig):
     trainer = TD3_BC(**kwargs)
 
     if config.load_model != "":
+        print("Load model, do not train from scratch")
         policy_file = Path(config.load_model)
         trainer.load_state_dict(torch.load(policy_file))
     else:
@@ -636,12 +637,12 @@ def train(config: TrainConfig):
         # and then just reuse it in further steps
 
         # Offline Training
-        offline_train(config, replay_buffer, trainer, env, 'offline_training')
+        offline_train(config, replay_buffer, trainer, env, 'offline_training', config.max_timesteps)
 
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
     trainer.update_critic = False
-    offline_train(config, replay_buffer, trainer, env, 'offline_refinement')
+    offline_train(config, replay_buffer, trainer, env, 'offline_refinement', config.refinement_timesteps)
 
     trainer.update_critic = True
     decay_rate = np.exp(np.log(config.alpha_end / config.alpha_start) / config.finetune_timesteps)
