@@ -360,8 +360,8 @@ class TD3_BC:  # noqa
             self.critic_1_optimizer.step()
             self.critic_2_optimizer.step()
         else:
-            assert all(map(lambda x: torch.all(x[0] == x[1]), zip(critic_1.parameters(), critic_1_target.parameters())))
-            assert all(map(lambda x: torch.all(x[0] == x[1]), zip(critic_2.parameters(), critic_2_target.parameters())))
+            assert all(map(lambda x: torch.all(x[0] == x[1]), zip(self.critic_1.parameters(), self.critic_1_target.parameters())))
+            assert all(map(lambda x: torch.all(x[0] == x[1]), zip(self.critic_2.parameters(), self.critic_2_target.parameters())))
 
         # Delayed actor updates
         if self.total_it % self.policy_freq == 0:

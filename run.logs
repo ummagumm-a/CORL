@@ -12,3 +12,287 @@ No module named 'carla'
 /usr/local/lib/python3.8/dist-packages/gym/spaces/box.py:73: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
   logger.warn(
 load datafile:   0%|          | 0/5 [00:00<?, ?it/s]load datafile: 100%|██████████| 5/5 [00:00<00:00, 66.51it/s]
+wandb: Currently logged in as: ummagumm-a. Use `wandb login --relogin` to force relogin
+Dataset size: 200918
+Checkpoints path: ckpts/IMPROVED_TD3_BC_2.0-hopper-medium-replay-v0-08aa11d4
+---------------------------------------
+Training TD3 + BC, Env: hopper-medium-replay-v0, Seed: 0
+---------------------------------------
+wandb: wandb version 0.14.1 is available!  To upgrade, please run:
+wandb:  $ pip install wandb --upgrade
+wandb: Tracking run with wandb version 0.12.21
+wandb: Run data is saved locally in /workspace/pp/CORL/wandb/run-20230406_163030-2d657e5c-e61e-4d20-a376-17b7ec38c190
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run IMPROVED_TD3_BC_2.0-hopper-medium-replay-v0-08aa11d4
+wandb: ⭐️ View project at https://wandb.ai/ummagumm-a/CORL
+wandb: 🚀 View run at https://wandb.ai/ummagumm-a/CORL/runs/2d657e5c-e61e-4d20-a376-17b7ec38c190
+[34m[1mwandb[0m: [33mWARNING[0m Calling wandb.run.save without any arguments is deprecated.Changes to attributes are automatically persisted.
+Time steps: 5000
+---------------------------------------
+Evaluation over 10 episodes: 370.250 , D4RL score: 11.999
+---------------------------------------
+Saving
+Time steps: 10000
+---------------------------------------
+Evaluation over 10 episodes: 185.930 , D4RL score: 6.336
+---------------------------------------
+Time steps: 15000
+---------------------------------------
+Evaluation over 10 episodes: 431.387 , D4RL score: 13.878
+---------------------------------------
+Saving
+Time steps: 20000
+---------------------------------------
+Evaluation over 10 episodes: 543.219 , D4RL score: 17.314
+---------------------------------------
+Saving
+Time steps: 25000
+---------------------------------------
+Evaluation over 10 episodes: 377.289 , D4RL score: 12.215
+---------------------------------------
+Time steps: 30000
+---------------------------------------
+Evaluation over 10 episodes: 499.068 , D4RL score: 15.957
+---------------------------------------
+Time steps: 35000
+---------------------------------------
+Evaluation over 10 episodes: 433.260 , D4RL score: 13.935
+---------------------------------------
+Time steps: 40000
+---------------------------------------
+Evaluation over 10 episodes: 407.545 , D4RL score: 13.145
+---------------------------------------
+Time steps: 45000
+---------------------------------------
+Evaluation over 10 episodes: 472.425 , D4RL score: 15.139
+---------------------------------------
+Time steps: 50000
+---------------------------------------
+Evaluation over 10 episodes: 839.469 , D4RL score: 26.416
+---------------------------------------
+Saving
+Time steps: 55000
+---------------------------------------
+Evaluation over 10 episodes: 745.042 , D4RL score: 23.515
+---------------------------------------
+Time steps: 60000
+---------------------------------------
+Evaluation over 10 episodes: 715.255 , D4RL score: 22.600
+---------------------------------------
+Time steps: 65000
+---------------------------------------
+Evaluation over 10 episodes: 914.756 , D4RL score: 28.730
+---------------------------------------
+Saving
+Time steps: 70000
+---------------------------------------
+Evaluation over 10 episodes: 939.580 , D4RL score: 29.492
+---------------------------------------
+Saving
+Time steps: 75000
+---------------------------------------
+Evaluation over 10 episodes: 922.408 , D4RL score: 28.965
+---------------------------------------
+Time steps: 80000
+---------------------------------------
+Evaluation over 10 episodes: 357.465 , D4RL score: 11.606
+---------------------------------------
+Time steps: 85000
+---------------------------------------
+Evaluation over 10 episodes: 826.549 , D4RL score: 26.019
+---------------------------------------
+Time steps: 90000
+---------------------------------------
+Evaluation over 10 episodes: 1060.616 , D4RL score: 33.211
+---------------------------------------
+Saving
+Time steps: 95000
+---------------------------------------
+Evaluation over 10 episodes: 946.457 , D4RL score: 29.704
+---------------------------------------
+Time steps: 100000
+---------------------------------------
+Evaluation over 10 episodes: 816.120 , D4RL score: 25.699
+---------------------------------------
+Time steps: 105000
+---------------------------------------
+Evaluation over 10 episodes: 1001.510 , D4RL score: 31.395
+---------------------------------------
+Time steps: 110000
+---------------------------------------
+Evaluation over 10 episodes: 1068.746 , D4RL score: 33.461
+---------------------------------------
+Saving
+Time steps: 115000
+---------------------------------------
+Evaluation over 10 episodes: 803.362 , D4RL score: 25.307
+---------------------------------------
+Time steps: 120000
+---------------------------------------
+Evaluation over 10 episodes: 1018.813 , D4RL score: 31.927
+---------------------------------------
+Time steps: 125000
+---------------------------------------
+Evaluation over 10 episodes: 809.112 , D4RL score: 25.484
+---------------------------------------
+Time steps: 130000
+---------------------------------------
+Evaluation over 10 episodes: 939.526 , D4RL score: 29.491
+---------------------------------------
+Time steps: 135000
+---------------------------------------
+Evaluation over 10 episodes: 910.093 , D4RL score: 28.586
+---------------------------------------
+Time steps: 140000
+---------------------------------------
+Evaluation over 10 episodes: 887.449 , D4RL score: 27.891
+---------------------------------------
+Time steps: 145000
+---------------------------------------
+Evaluation over 10 episodes: 685.387 , D4RL score: 21.682
+---------------------------------------
+Time steps: 150000
+---------------------------------------
+Evaluation over 10 episodes: 644.478 , D4RL score: 20.425
+---------------------------------------
+Time steps: 155000
+---------------------------------------
+Evaluation over 10 episodes: 976.460 , D4RL score: 30.626
+---------------------------------------
+Time steps: 160000
+---------------------------------------
+Evaluation over 10 episodes: 1069.858 , D4RL score: 33.495
+---------------------------------------
+Saving
+Time steps: 165000
+---------------------------------------
+Evaluation over 10 episodes: 1042.939 , D4RL score: 32.668
+---------------------------------------
+Time steps: 170000
+---------------------------------------
+Evaluation over 10 episodes: 975.402 , D4RL score: 30.593
+---------------------------------------
+Time steps: 175000
+---------------------------------------
+Evaluation over 10 episodes: 925.280 , D4RL score: 29.053
+---------------------------------------
+Time steps: 180000
+---------------------------------------
+Evaluation over 10 episodes: 763.899 , D4RL score: 24.094
+---------------------------------------
+Time steps: 185000
+---------------------------------------
+Evaluation over 10 episodes: 1123.011 , D4RL score: 35.129
+---------------------------------------
+Saving
+Time steps: 190000
+---------------------------------------
+Evaluation over 10 episodes: 370.024 , D4RL score: 11.992
+---------------------------------------
+Time steps: 195000
+---------------------------------------
+Evaluation over 10 episodes: 542.979 , D4RL score: 17.306
+---------------------------------------
+Time steps: 200000
+---------------------------------------
+Evaluation over 10 episodes: 804.755 , D4RL score: 25.350
+---------------------------------------
+Time steps: 205000
+---------------------------------------
+Evaluation over 10 episodes: 884.743 , D4RL score: 27.808
+---------------------------------------
+Time steps: 210000
+---------------------------------------
+Evaluation over 10 episodes: 578.076 , D4RL score: 18.385
+---------------------------------------
+Time steps: 215000
+---------------------------------------
+Evaluation over 10 episodes: 986.397 , D4RL score: 30.931
+---------------------------------------
+Time steps: 220000
+---------------------------------------
+Evaluation over 10 episodes: 1079.791 , D4RL score: 33.801
+---------------------------------------
+Time steps: 225000
+---------------------------------------
+Evaluation over 10 episodes: 985.620 , D4RL score: 30.907
+---------------------------------------
+Time steps: 230000
+---------------------------------------
+Evaluation over 10 episodes: 700.998 , D4RL score: 22.162
+---------------------------------------
+Time steps: 235000
+---------------------------------------
+Evaluation over 10 episodes: 1010.642 , D4RL score: 31.676
+---------------------------------------
+Time steps: 240000
+---------------------------------------
+Evaluation over 10 episodes: 939.647 , D4RL score: 29.494
+---------------------------------------
+Time steps: 245000
+---------------------------------------
+Evaluation over 10 episodes: 700.358 , D4RL score: 22.142
+---------------------------------------
+Time steps: 250000
+---------------------------------------
+Evaluation over 10 episodes: 699.037 , D4RL score: 22.101
+---------------------------------------
+Time steps: 255000
+---------------------------------------
+Evaluation over 10 episodes: 955.759 , D4RL score: 29.990
+---------------------------------------
+Time steps: 260000
+---------------------------------------
+Evaluation over 10 episodes: 526.639 , D4RL score: 16.804
+---------------------------------------
+Time steps: 265000
+---------------------------------------
+Evaluation over 10 episodes: 729.214 , D4RL score: 23.029
+---------------------------------------
+Time steps: 270000
+---------------------------------------
+Evaluation over 10 episodes: 930.068 , D4RL score: 29.200
+---------------------------------------
+Time steps: 275000
+---------------------------------------
+Evaluation over 10 episodes: 935.956 , D4RL score: 29.381
+---------------------------------------
+Time steps: 280000
+---------------------------------------
+Evaluation over 10 episodes: 1053.144 , D4RL score: 32.982
+---------------------------------------
+Time steps: 285000
+---------------------------------------
+Evaluation over 10 episodes: 885.555 , D4RL score: 27.832
+---------------------------------------
+Time steps: 290000
+---------------------------------------
+Evaluation over 10 episodes: 530.993 , D4RL score: 16.938
+---------------------------------------
+Time steps: 295000
+---------------------------------------
+Evaluation over 10 episodes: 747.186 , D4RL score: 23.581
+---------------------------------------
+Time steps: 300000
+---------------------------------------
+Evaluation over 10 episodes: 1035.920 , D4RL score: 32.453
+---------------------------------------
+Traceback (most recent call last):
+  File "algorithms/improved_td3_bc.py", line 668, in <module>
+    train()
+  File "/usr/local/lib/python3.8/dist-packages/pyrallis/argparsing.py", line 158, in wrapper_inner
+    response = fn(cfg, *args, **kwargs)
+  File "algorithms/improved_td3_bc.py", line 644, in train
+    offline_train(config, replay_buffer, trainer, env, 'offline_refinement')
+  File "algorithms/improved_td3_bc.py", line 422, in offline_train
+    log_dict = trainer.train(batch)
+  File "algorithms/improved_td3_bc.py", line 363, in train
+    assert all(map(lambda x: torch.all(x[0] == x[1]), zip(critic_1.parameters(), critic_1_target.parameters())))
+NameError: name 'critic_1' is not defined
+wandb: Waiting for W&B process to finish... (failed 1). Press Control-C to abort syncing.
+wandb: - 2.413 MB of 2.413 MB uploaded (0.000 MB deduped)wandb: \ 2.413 MB of 2.413 MB uploaded (0.000 MB deduped)wandb: | 2.413 MB of 2.413 MB uploaded (0.000 MB deduped)wandb: / 2.413 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: - 2.413 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: \ 2.413 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: | 2.413 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: / 2.424 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: - 2.426 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: \ 2.426 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: | 2.426 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: / 2.426 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: - 2.426 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: \ 2.426 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: | 2.426 MB of 2.426 MB uploaded (0.000 MB deduped)wandb: / 2.426 MB of 2.426 MB uploaded (0.000 MB deduped)wandb:                                                                                
+/usr/lib/python3/dist-packages/requests/__init__.py:89: RequestsDependencyWarning: urllib3 (1.26.15) or chardet (3.0.4) doesn't match a supported version!
+  warnings.warn("urllib3 ({}) or chardet ({}) doesn't match a supported "
+wandb: Synced IMPROVED_TD3_BC_2.0-hopper-medium-replay-v0-08aa11d4: https://wandb.ai/ummagumm-a/CORL/runs/2d657e5c-e61e-4d20-a376-17b7ec38c190
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 1 other file(s)
+wandb: Find logs at: ./wandb/run-20230406_163030-2d657e5c-e61e-4d20-a376-17b7ec38c190/logs
