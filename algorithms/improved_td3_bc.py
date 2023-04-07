@@ -29,8 +29,8 @@ class TrainConfig:
     device: str = "cuda"
     env: str = "hopper-medium-replay-v0"  # OpenAI gym environment name
     seed: int = 0  # Sets Gym, PyTorch and Numpy seeds
-    eval_freq: int = int(5e3)  # How often (time steps) we evaluate
-    n_episodes: int = 10  # How many episodes run during evaluation
+    eval_freq: int = int(1e4)  # How often (time steps) we evaluate
+    n_episodes: int = 20  # How many episodes run during evaluation
 #    max_timesteps: int = int(1e6)  # Max time steps to run environment
     max_timesteps: int = int(1e6)  # Max time steps to run environment
     checkpoints_path: Optional[str] = None  # Save path
@@ -543,7 +543,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
                      "train_episode_score": episode_reward,
                      "train_episode_length": episode_length,
                    })
-            training_rewards.append(episode_reward)
+            training_rewards.append(env.get_normalized_score(episode_reward) * 100)
             episode_reward = 0.0 
             episode_length = 0
             episode_num += 1
@@ -663,9 +663,6 @@ def train_helper(config: TrainConfig):
     trainer.alpha /= config.refinement_lambda
     trainer.update_critic = False
     refinement_evaluations = offline_train(config, replay_buffer, trainer, env, 'offline_refinement', config.refinement_timesteps)
-    if config.tune_refinement:
-        wandb.finish()
-        return max(refinement_evaluations)
 
     trainer.update_critic = True
     # We don't want to divide on zero
@@ -686,11 +683,19 @@ def train_helper(config: TrainConfig):
 
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
     episode_num, buffer_collection_rewards = online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
+    buffer_collection_rewards = np.asarray(buffer_collection_rewards)
 
     # Finetune online with data collected from interactions with the environment
     episode_num, finetune_rewards = online_finetune(config, env, replay_buffer, trainer, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
+    finetune_rewards = np.asarray(finetune_rewards)
 
     wandb.finish()
+
+    all_rewards = np.hstack(buffer_collection_rewards, finetune_rewards)
+    print(initial_score, all_rewards[:5])
+    all_rewards -= initial_score
+
+    aggregated_train_value = np.cumsum(all_rewards)
 
 
 class Objective:
@@ -704,11 +709,11 @@ class Objective:
         new_config.expl_noise = trial.suggest_float("expl_noise", 0, 1)
         new_config.alpha_start = trial.suggest_float("alpha_start", 0, self.config.alpha)
         new_config.alpha_end = trial.suggest_float("alpha_end", 0, new_config.alpha_start)
-        new_config.name = f"r_{new_config.refinement_lambda}_e_{new_config.expl_noise}_as_{new_config.alpha_start}_ae_{new_config.alpha_end}"
 
         values = []
         for i in range(self.num_seeds):
             new_config.seed = i
+            new_config.name = f"r_{new_config.refinement_lambda}_e_{new_config.expl_noise}_as_{new_config.alpha_start}_ae_{new_config.alpha_end}_seed_{i}"
             value = train_helper(new_config)
             values.append(value)
 
