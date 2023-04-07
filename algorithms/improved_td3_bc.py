@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass, replace
 import os
 from pathlib import Path
 import random
+import re
 import uuid
 
 import d4rl
@@ -29,7 +30,7 @@ class TrainConfig:
     device: str = "cuda"
     env: str = "hopper-medium-replay-v0"  # OpenAI gym environment name
     seed: int = 0  # Sets Gym, PyTorch and Numpy seeds
-    eval_freq: int = int(5e3)  # How often (time steps) we evaluate
+    eval_freq: int = int(1e4)  # How often (time steps) we evaluate
     n_episodes: int = 20  # How many episodes run during evaluation
 #    max_timesteps: int = int(1e6)  # Max time steps to run environment
     max_timesteps: int = int(1e6)  # Max time steps to run environment
@@ -62,6 +63,7 @@ class TrainConfig:
     job_type: str = "default"
     # Tuning
     hyper_tune: bool = False
+    load_model_for_tune: str = None
 
     def __post_init__(self):
         self.name = f"{self.name}-{self.env}-{str(uuid.uuid4())[:8]}"
@@ -715,6 +717,8 @@ class Objective:
         finetune_values = []
         for i in range(self.num_seeds):
             new_config.seed = i
+            new_config.load_model = next(filter(lambda x: (f"pretrained_seed{i+1}-" + self.config.env) in x, os.listdir(self.config.load_model_for_tune)))
+            new_config.load_model = os.path.join(self.config.load_model_for_tune, new_config.load_model, "best_checkpoint.pt")
             new_config.name = f"r_{new_config.refinement_lambda}_e_{new_config.expl_noise}_as_{new_config.alpha_start}_ae_{new_config.alpha_end}_seed_{i}"
             
             refienement_evaluations, value = train_helper(new_config)
@@ -724,7 +728,7 @@ class Objective:
 
         refinements = np.asarray(refinements)
         
-        return refinements.mean(axis=0).max(), sum(values) / len(values)
+        return refinements.mean(axis=0).max(), sum(finetune_values) / len(finetune_values)
 
 
 @pyrallis.wrap()
@@ -732,8 +736,8 @@ def train(config: TrainConfig):
     if config.hyper_tune:
         study = optuna.load_study(study_name="improved_td3_bc_tune", storage="mysql://root@localhost/improved_td3_bc_tune")
         study.optimize(Objective(config, num_seeds=2), n_trials=2)
-        
-    return train_helper(config)
+    else:    
+        return train_helper(config)
 
 if __name__ == "__main__":
     train()
