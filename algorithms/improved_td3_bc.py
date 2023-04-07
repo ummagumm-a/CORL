@@ -463,6 +463,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
     state, done = env.reset(), False
     episode_reward = 0.0
     episode_length = 0
+    evaluations = []
     for i in tqdm.tqdm(range(n_timesteps), desc=mode):
         log = {}
         # The action is generated in the same way as in TD3_BC.train
