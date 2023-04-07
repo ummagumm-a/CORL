@@ -29,7 +29,7 @@ class TrainConfig:
     device: str = "cuda"
     env: str = "hopper-medium-replay-v0"  # OpenAI gym environment name
     seed: int = 0  # Sets Gym, PyTorch and Numpy seeds
-    eval_freq: int = int(1e4)  # How often (time steps) we evaluate
+    eval_freq: int = int(5e3)  # How often (time steps) we evaluate
     n_episodes: int = 20  # How many episodes run during evaluation
 #    max_timesteps: int = int(1e6)  # Max time steps to run environment
     max_timesteps: int = int(1e6)  # Max time steps to run environment
@@ -50,7 +50,7 @@ class TrainConfig:
     normalize_reward: bool = False  # Normalize reward
     # Improved TD3 + BC
     refinement_lambda: float = 5
-    refinement_timesteps: int = 0
+    refinement_timesteps: int = 100000
     alpha_start: float = 0.4
     alpha_end: float = 0.2
     buffer_collections_timesteps: int = 5000
@@ -540,12 +540,12 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             state, done = env.reset(), False
             # If done - log info about current episode to wandb
             # and reset counters
-            print(f"Done {mode}:", episode_num, episode_reward, episode_length)
             log.update({
                      "train_episode_score": episode_reward,
                      "train_episode_length": episode_length,
                    })
-            training_rewards.append(env.get_normalized_score(episode_reward) * 100)
+#            episode_reward = env.get_normalized_score(episode_reward) * 100
+            training_rewards.append(episode_reward)
             episode_reward = 0.0 
             episode_length = 0
             episode_num += 1
@@ -655,7 +655,7 @@ def train_helper(config: TrainConfig):
         env,
         trainer.actor,
         device=config.device,
-        n_episodes=config.n_episodes * 10, # for more reliability
+        n_episodes=config.n_episodes * 5, # for more reliability
         seed=config.seed,
     )
     initial_score = initial_scores.mean()
@@ -693,13 +693,10 @@ def train_helper(config: TrainConfig):
 
     wandb.finish()
 
-    all_rewards = np.hstack(buffer_collection_rewards, finetune_rewards)
-    print(initial_score, all_rewards[:5])
+    all_rewards = np.hstack((buffer_collection_rewards, finetune_rewards))
     all_rewards -= initial_score
 
     return refinement_evaluations, np.sum(all_rewards)
-
-
 
 
 class Objective:
@@ -734,7 +731,7 @@ class Objective:
 def train(config: TrainConfig):
     if config.hyper_tune:
         study = optuna.load_study(study_name="improved_td3_bc_tune", storage="mysql://root@localhost/improved_td3_bc_tune")
-        study.optimize(Objective(config, num_seeds=5), num_trials=100)
+        study.optimize(Objective(config, num_seeds=2), n_trials=2)
         
     return train_helper(config)
 
