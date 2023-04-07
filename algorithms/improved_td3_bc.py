@@ -60,6 +60,8 @@ class TrainConfig:
     group: str = "IMPROVED_TD3_BC-D4RL_2.0"
     name: str = "IMPROVED_TD3_BC_2.0"
     job_type: str = "default"
+    # Tuning
+    hyper_tune: bool = False
 
     def __post_init__(self):
         self.name = f"{self.name}-{self.env}-{str(uuid.uuid4())[:8]}"
@@ -695,7 +697,9 @@ def train_helper(config: TrainConfig):
     print(initial_score, all_rewards[:5])
     all_rewards -= initial_score
 
-    aggregated_train_value = np.cumsum(all_rewards)
+    return refinement_evaluations, np.sum(all_rewards)
+
+
 
 
 class Objective:
@@ -710,19 +714,25 @@ class Objective:
         new_config.alpha_start = trial.suggest_float("alpha_start", 0, self.config.alpha)
         new_config.alpha_end = trial.suggest_float("alpha_end", 0, new_config.alpha_start)
 
-        values = []
+        refinements = []
+        finetune_values = []
         for i in range(self.num_seeds):
             new_config.seed = i
             new_config.name = f"r_{new_config.refinement_lambda}_e_{new_config.expl_noise}_as_{new_config.alpha_start}_ae_{new_config.alpha_end}_seed_{i}"
-            value = train_helper(new_config)
-            values.append(value)
+            
+            refienement_evaluations, value = train_helper(new_config)
 
-        return sum(values) / len(values)
+            finetune_values.append(value)
+            refinements.append(refienement_evaluations)
+
+        refinements = np.asarray(refinements)
+        
+        return refinements.mean(axis=0).max(), sum(values) / len(values)
 
 
 @pyrallis.wrap()
 def train(config: TrainConfig):
-    if config.tune_refinement:
+    if config.hyper_tune:
         study = optuna.load_study(study_name="improved_td3_bc_tune", storage="mysql://root@localhost/improved_td3_bc_tune")
         study.optimize(Objective(config, num_seeds=5), num_trials=100)
         
