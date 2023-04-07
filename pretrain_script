@@ -1,0 +1,3 @@
+SEED=$1
+MODE=$2
+python algorithms/improved_td3_bc.py --checkpoints_path=ckpts/offline_pretrained/ --seed=$SEED --env="hopper-medium-${MODE}-v0" --name="pretrained_seed${SEED}" --device="cuda:${SEED}" --alpha=0.4 --refinement_timesteps=0 --finetune_timesteps=0 --buffer_collections_timesteps=0 --max_timesteps=300000
