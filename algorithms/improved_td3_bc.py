@@ -710,7 +710,7 @@ def train_helper(config: TrainConfig):
     buffer_collection_rewards = np.asarray(buffer_collection_rewards)
 
     # See the proximity of states in the initialized buffer to the states visited by the behaviour policy
-    init_states_dist, _ = offline_ds_near_neigh(online_replay_buffer._states.cpu().numpy())
+    init_states_dist, _ = offline_ds_near_neigh.kneighbors(online_replay_buffer.observations[:, 0, :])
     wandb.run.summary["init_states_dist_mean"] = init_states_dist.mean()
     wandb.run.summary["init_states_dist_std"] = init_states_dist.std()
 
