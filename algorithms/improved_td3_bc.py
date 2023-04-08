@@ -382,9 +382,10 @@ class TD3_BC:  # noqa
             log_dict["actor_loss"] = actor_loss.item()
 
             # Find divergence of chosen action 'pi' from actions in offline dataset
-            penalty_offline = F.mse_loss(pi, action_neighbors)
-            log_dict["action_divergence_from_offline"] = penalty_offline.item()
-            log_dict["state_divergence_from_offline"] = state_neighbors_dist.mean().item()
+            if action_neighbors and state_neighbors_dist:
+                penalty_offline = F.mse_loss(pi, action_neighbors)
+                log_dict["action_divergence_from_offline"] = penalty_offline.item()
+                log_dict["state_divergence_from_offline"] = state_neighbors_dist.mean().item()
 
             # Optimize the actor
             self.actor_optimizer.zero_grad()
@@ -700,15 +701,16 @@ def train_helper(config: TrainConfig):
             )
 
     # Fit nearest neighbors
-    offline_ds_near_neigh = NearestNeighbors(k_neighbors=1)
-    offline_ds_near_neigh.fit(replay_buffer._states.numpy())
+    print("Constructing NearestNeighbors")
+    offline_ds_near_neigh = NearestNeighbors(n_neighbors=1)
+    offline_ds_near_neigh.fit(replay_buffer._states)
 
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
-    episode_num, buffer_collection_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
+    episode_num, buffer_collection_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, replay_buffer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
     buffer_collection_rewards = np.asarray(buffer_collection_rewards)
 
     # Finetune online with data collected from interactions with the environment
-    episode_num, finetune_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
+    episode_num, finetune_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, replay_buffer, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
     finetune_rewards = np.asarray(finetune_rewards)
 
     wandb.finish()
