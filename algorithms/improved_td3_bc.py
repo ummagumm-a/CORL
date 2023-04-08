@@ -383,9 +383,9 @@ class TD3_BC:  # noqa
 
             # Find divergence of chosen action 'pi' from actions in offline dataset
             if action_neighbors and state_neighbors_dist:
-                penalty_offline = F.mse_loss(pi, action_neighbors)
+                penalty_offline = F.mse_loss(pi, torch.from_numpy(action_neighbors))
                 log_dict["action_divergence_from_offline"] = penalty_offline.item()
-                log_dict["state_divergence_from_offline"] = state_neighbors_dist.mean().item()
+                log_dict["state_divergence_from_offline"] = state_neighbors_dist.mean()
 
             # Optimize the actor
             self.actor_optimizer.zero_grad()
@@ -504,7 +504,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
             batch = tuple(map(lambda x: x.to(torch.float32), batch))
             # Find states in the offline dataset which look like states from online replay buffer...
-            state_neighbors_dist, state_neighbors_inds = offline_ds_near_neigh.kneighbors(batch[0])
+            state_neighbors_dist, state_neighbors_inds = offline_ds_near_neigh.kneighbors(batch[0].cpu().numpy())
             # ... and also get corresponding actions
             action_neighbors = offline_replay_buffer._actions[state_neighbors_inds]
             # Make a training step
@@ -703,7 +703,7 @@ def train_helper(config: TrainConfig):
     # Fit nearest neighbors
     print("Constructing NearestNeighbors")
     offline_ds_near_neigh = NearestNeighbors(n_neighbors=1)
-    offline_ds_near_neigh.fit(replay_buffer._states)
+    offline_ds_near_neigh.fit(replay_buffer._states.cpu().numpy())
 
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
     episode_num, buffer_collection_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, replay_buffer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
