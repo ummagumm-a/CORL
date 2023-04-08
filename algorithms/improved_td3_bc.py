@@ -383,7 +383,7 @@ class TD3_BC:  # noqa
 
             # Find divergence of chosen action 'pi' from actions in offline dataset
             if action_neighbors is not None and state_neighbors_dist is not None:
-                penalty_offline = F.mse_loss(pi, torch.from_numpy(action_neighbors))
+                penalty_offline = F.mse_loss(pi, action_neighbors)
                 log_dict["action_divergence_from_offline"] = penalty_offline.item()
                 log_dict["state_divergence_from_offline"] = state_neighbors_dist.mean()
 
