@@ -57,6 +57,7 @@ class TrainConfig:
     alpha_end: float = 0.2
     buffer_collections_timesteps: int = 5000
     finetune_timesteps: int = 245000
+    manual_penalty_scale: Optional[float] = None
     # Wandb logging
     project: str = "CORL"
     group: str = "IMPROVED_TD3_BC-D4RL_2.0"
@@ -302,7 +303,8 @@ class TD3_BC:  # noqa
         policy_freq: int = 2,
         alpha: float = 2.5,
         device: str = "cpu",
-        update_critic: bool = True
+        update_critic: bool = True,
+        manual_penalty_scale: Optional[float] = None
     ):
         self.actor = actor
         self.actor_target = copy.deepcopy(actor)
@@ -329,6 +331,8 @@ class TD3_BC:  # noqa
         # during refinement steps.
         # Therefore I added a flag to control this behaviour
         self.update_critic = update_critic
+
+        self.manual_penalty_scale = manual_penalty_scale
 
     def train(self, batch: TensorBatch, state_neighbors_dist: Optional[torch.tensor] = None, action_neighbors: Optional[torch.tensor] = None) -> Dict[str, float]:
         log_dict = {}
@@ -376,6 +380,10 @@ class TD3_BC:  # noqa
 #            lmbda = self.alpha / q.abs().mean().detach()
 
             penalty = F.mse_loss(pi, action)
+
+            if self.manual_penalty_scale is not None:
+                penalty /= self.manual_penalty_scale
+
             log_dict["penalty"] = penalty.item()
 #            actor_loss = -lmbda * q.mean() + F.mse_loss(pi, action)
             actor_loss = -q.mean() / q.abs().mean().detach() + self.alpha * penalty
@@ -641,6 +649,8 @@ def train_helper(config: TrainConfig):
         "policy_freq": config.policy_freq,
         # TD3 + BC
         "alpha": config.alpha,
+        # Improved TD3
+        "manual_penalty_scale": config.manual_penalty_scale,
     }
 
     print("---------------------------------------")
@@ -676,6 +686,7 @@ def train_helper(config: TrainConfig):
         seed=config.seed,
     )
     initial_score = initial_scores.mean()
+    wandb.run.summary["initial_score"] = initial_scores.mean()
 
 
     # Policy Refinement
@@ -710,9 +721,9 @@ def train_helper(config: TrainConfig):
     buffer_collection_rewards = np.asarray(buffer_collection_rewards)
 
     # See the proximity of states in the initialized buffer to the states visited by the behaviour policy
-    init_states_dist, _ = offline_ds_near_neigh.kneighbors(online_replay_buffer.observations[:, 0, :])
-    wandb.run.summary["init_states_dist_mean"] = init_states_dist.mean()
-    wandb.run.summary["init_states_dist_std"] = init_states_dist.std()
+#    init_states_dist, _ = offline_ds_near_neigh.kneighbors(online_replay_buffer.observations[:, 0, :])
+#    wandb.run.summary["init_states_dist_mean"] = init_states_dist.mean()
+#    wandb.run.summary["init_states_dist_std"] = init_states_dist.std()
 
     # Finetune online with data collected from interactions with the environment
     episode_num, finetune_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, replay_buffer, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
