@@ -709,6 +709,11 @@ def train_helper(config: TrainConfig):
     episode_num, buffer_collection_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, replay_buffer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
     buffer_collection_rewards = np.asarray(buffer_collection_rewards)
 
+    # See the proximity of states in the initialized buffer to the states visited by the behaviour policy
+    init_states_dist, _ = offline_ds_near_neigh(online_replay_buffer._states.cpu().numpy())
+    wandb.run.summary["init_states_dist_mean"] = init_states_dist.mean()
+    wandb.run.summary["init_states_dist_std"] = init_states_dist.std()
+
     # Finetune online with data collected from interactions with the environment
     episode_num, finetune_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, replay_buffer, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
     finetune_rewards = np.asarray(finetune_rewards)
