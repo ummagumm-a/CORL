@@ -779,6 +779,20 @@ def train(config: TrainConfig):
 
         study.optimize(Objective(config, num_seeds=5), n_trials=4)
     else:    
+        # These are the optimal values found by optuna
+        if "expert" in config.env:
+            config.refinement_lambda = 17.204749327751845
+            config.expl_noise = 0.000921327153451057
+            config.alpha_start = 2.159890669879296
+            config.alpha_end = 1.3948891044559208
+        elif "replay" in config.env:
+            config.refinement_lambda = 99.57124329814648
+            config.expl_noise = 0.028696478163485396
+            config.alpha_start = 0.28584817374645266
+            config.alpha_end = 0.07953471402322326
+
+        print("CONFIG:", config)
+
         return train_helper(config)
 
 if __name__ == "__main__":
