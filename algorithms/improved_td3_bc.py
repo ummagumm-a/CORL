@@ -20,6 +20,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import wandb
 from stable_baselines3.common.buffers import ReplayBuffer as sb3_ReplayBuffer
+from sklearn.neighbors import NearestNeighbors
 
 TensorBatch = List[torch.Tensor]
 
@@ -329,7 +330,7 @@ class TD3_BC:  # noqa
         # Therefore I added a flag to control this behaviour
         self.update_critic = update_critic
 
-    def train(self, batch: TensorBatch) -> Dict[str, float]:
+    def train(self, batch: TensorBatch, state_neighbors_dist: Optional[torch.tensor] = None, action_neighbors: Optional[torch.tensor] = None) -> Dict[str, float]:
         log_dict = {}
         self.total_it += 1
 
@@ -379,6 +380,12 @@ class TD3_BC:  # noqa
 #            actor_loss = -lmbda * q.mean() + F.mse_loss(pi, action)
             actor_loss = -q.mean() / q.abs().mean().detach() + self.alpha * penalty
             log_dict["actor_loss"] = actor_loss.item()
+
+            # Find divergence of chosen action 'pi' from actions in offline dataset
+            penalty_offline = F.mse_loss(pi, action_neighbors)
+            log_dict["action_divergence_from_offline"] = penalty_offline.item()
+            log_dict["state_divergence_from_offline"] = state_neighbors_dist.mean().item()
+
             # Optimize the actor
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
@@ -465,7 +472,9 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
     return evaluations
 
 
-def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, n_timesteps: int, mode: str, episode_num: int, decay_rate:float = None):
+def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, 
+                    offline_ds_near_neigh: NearestNeighbors, offline_replay_buffer: ReplayBuffer, 
+                    n_timesteps: int, mode: str, episode_num: int, decay_rate:float = None):
     state, done = env.reset(), False
     episode_reward = 0.0
     episode_length = 0
@@ -493,7 +502,12 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             # and ReplayBuffer from stable_baselines3
             batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
             batch = tuple(map(lambda x: x.to(torch.float32), batch))
-            log_dict = trainer.train(batch)
+            # Find states in the offline dataset which look like states from online replay buffer...
+            state_neighbors_dist, state_neighbors_inds = offline_ds_near_neigh.kneighbors(batch[0])
+            # ... and also get corresponding actions
+            action_neighbors = offline_replay_buffer._actions[state_neighbors_inds]
+            # Make a training step
+            log_dict = trainer.train(batch, state_neighbors_dist, action_neighbors)
             log_dict["alpha"] = trainer.alpha
             log.update(log_dict)
 
@@ -677,7 +691,7 @@ def train_helper(config: TrainConfig):
     print("decay_rate", decay_rate)
     trainer.alpha = config.alpha_start
 
-    replay_buffer = sb3_ReplayBuffer(
+    online_replay_buffer = sb3_ReplayBuffer(
             config.buffer_size,
             env.observation_space,
             env.action_space,
@@ -685,12 +699,16 @@ def train_helper(config: TrainConfig):
             handle_timeout_termination=True
             )
 
+    # Fit nearest neighbors
+    offline_ds_near_neigh = NearestNeighbors(k_neighbors=1)
+    offline_ds_near_neigh.fit(replay_buffer._states.numpy())
+
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
-    episode_num, buffer_collection_rewards = online_finetune(config, env, replay_buffer, trainer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
+    episode_num, buffer_collection_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
     buffer_collection_rewards = np.asarray(buffer_collection_rewards)
 
     # Finetune online with data collected from interactions with the environment
-    episode_num, finetune_rewards = online_finetune(config, env, replay_buffer, trainer, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
+    episode_num, finetune_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
     finetune_rewards = np.asarray(finetune_rewards)
 
     wandb.finish()
