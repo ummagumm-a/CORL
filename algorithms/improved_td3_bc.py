@@ -488,7 +488,7 @@ def offline_train(config: TrainConfig, replay_buffer: ReplayBuffer, trainer: TD3
 
 
 def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, trainer: TD3_BC, 
-                    offline_ds_near_neigh: NearestNeighbors, offline_replay_buffer: ReplayBuffer, 
+                    offline_ds_near_neigh: KDTree, offline_replay_buffer: ReplayBuffer, 
                     n_timesteps: int, mode: str, episode_num: int, decay_rate:float = None):
     state, done = env.reset(), False
     episode_reward = 0.0
