@@ -67,6 +67,9 @@ class TrainConfig:
     hyper_tune: bool = False
     load_model_for_tune: str = None
 
+    # Try adaptive alpha scheduling suggested by Zhao et al.
+    try_adaptive: bool = False
+
     def __post_init__(self):
         self.name = f"{self.name}-{self.env}-{str(uuid.uuid4())[:8]}"
         if self.checkpoints_path is not None:
@@ -490,6 +493,19 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
     evaluations = []
     training_rewards = []
     for i in tqdm.tqdm(range(n_timesteps), desc=mode):
+        # Initialize variables for AdaptiveBC approach
+        if config.try_adaptive and i == 0 and "online_finetune":
+            last_R = env.get_normalized_score(eval_actor(
+                    env,
+                    trainer.actor,
+                    device=config.device,
+                    n_episodes=1,
+                    seed=config.seed,
+                )[0][0]) / 100
+            current_R = last_R
+            target_R = 1.05
+            print("Adaptive values:", current_R, last_R, target_R)
+
         log = {}
         # The action is generated in the same way as in TD3_BC.train
         action = trainer.actor.act(state, device=config.device)
@@ -520,7 +536,8 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             log_dict["alpha"] = trainer.alpha
             log.update(log_dict)
 
-            trainer.alpha *= decay_rate
+            if not config.try_adaptive:
+                trainer.alpha *= decay_rate
 
             # Evaluate episode
             if (i + 1) % config.eval_freq == 0:
@@ -571,6 +588,21 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
                    })
 #            episode_reward = env.get_normalized_score(episode_reward) * 100
             training_rewards.append(episode_reward)
+
+            current_R = env.get_normalized_score(episode_reward) / 100
+
+            if config.try_adaptive:
+                # These values are taken from Zhao's implementation of AdaptiveBC:
+                # https://github.com/ummagumm-a/adaptive_bc
+                trainer.alpha += episode_length * (- 0.00003 * (target_R - last_R)
+                                 + 0.0001 * max(0, last_R - current_R))
+                trainer.alpha = max(0., min(trainer.alpha, config.alpha))
+
+                # Log values
+                log.update({"last_R": last_R, "current_R": current_R})
+
+            last_R = 0.05 * current_R + 0.95 * last_R
+
             episode_reward = 0.0 
             episode_length = 0
             episode_num += 1
