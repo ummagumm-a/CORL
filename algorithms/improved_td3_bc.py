@@ -202,8 +202,11 @@ def wandb_init(config: dict) -> None:
 
 @torch.no_grad()
 def eval_actor(
-    env: gym.Env, actor: nn.Module, device: str, n_episodes: int, seed: int
+    env_: gym.Env, actor: nn.Module, device: str, n_episodes: int, seed: int
 ) -> np.ndarray:
+    # Added to ensure that reset of environment state 
+    # does not affect other places which use this environment
+    env = copy.deepcopy(env_)
     env.seed(seed)
     actor.eval()
     episode_rewards = []
@@ -495,13 +498,15 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
     for i in tqdm.tqdm(range(n_timesteps), desc=mode):
         # Initialize variables for AdaptiveBC approach
         if config.try_adaptive and i == 0 and "online_finetune":
-            last_R = env.get_normalized_score(eval_actor(
-                    env,
-                    trainer.actor,
-                    device=config.device,
-                    n_episodes=1,
-                    seed=config.seed,
-                )[0][0]) / 100
+            score = eval_actor(
+                        env,
+                        trainer.actor,
+                        device=config.device,
+                        n_episodes=config.n_episodes,
+                        seed=config.seed,
+                    )[0].mean()
+            print(score, env.get_normalized_score(score))
+            last_R = env.get_normalized_score(score)
             current_R = last_R
             target_R = 1.05
             print("Adaptive values:", current_R, last_R, target_R)
@@ -589,9 +594,8 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
 #            episode_reward = env.get_normalized_score(episode_reward) * 100
             training_rewards.append(episode_reward)
 
-            current_R = env.get_normalized_score(episode_reward) / 100
-
             if config.try_adaptive:
+                current_R = env.get_normalized_score(episode_reward) / 100
                 # These values are taken from Zhao's implementation of AdaptiveBC:
                 # https://github.com/ummagumm-a/adaptive_bc
                 trainer.alpha += episode_length * (- 0.00003 * (target_R - last_R)
@@ -601,7 +605,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
                 # Log values
                 log.update({"last_R": last_R, "current_R": current_R})
 
-            last_R = 0.05 * current_R + 0.95 * last_R
+                last_R = 0.05 * current_R + 0.95 * last_R
 
             episode_reward = 0.0 
             episode_length = 0
