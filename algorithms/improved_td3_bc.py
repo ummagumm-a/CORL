@@ -20,7 +20,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import wandb
 from stable_baselines3.common.buffers import ReplayBuffer as sb3_ReplayBuffer
-from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import KDTree
 
 TensorBatch = List[torch.Tensor]
 
@@ -533,7 +533,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             batch = batch_[0], batch_[1], batch_[4], batch_[2], batch_[3]
             batch = tuple(map(lambda x: x.to(torch.float32), batch))
             # Find states in the offline dataset which look like states from online replay buffer...
-            state_neighbors_dist, state_neighbors_inds = offline_ds_near_neigh.kneighbors(batch[0].cpu().numpy())
+            state_neighbors_dist, state_neighbors_inds = offline_ds_near_neigh.query(batch[0].cpu().numpy(), k=1)
             # ... and also get corresponding actions
             action_neighbors = offline_replay_buffer._actions[state_neighbors_inds]
             # Make a training step
@@ -749,8 +749,7 @@ def train_helper(config: TrainConfig):
 
     # Fit nearest neighbors
     print("Constructing NearestNeighbors")
-    offline_ds_near_neigh = NearestNeighbors(n_neighbors=1)
-    offline_ds_near_neigh.fit(replay_buffer._states.cpu().numpy())
+    offline_ds_near_neigh = KDTree(replay_buffer._states.cpu().numpy())
 
     # Initialize Buffer with 'buffer_collections_timesteps' timesteps
     episode_num, buffer_collection_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, replay_buffer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
