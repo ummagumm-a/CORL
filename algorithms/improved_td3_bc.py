@@ -541,6 +541,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
             log_dict["alpha"] = trainer.alpha
             log.update(log_dict)
 
+            # True by default. Here I change the alpha parameter according to the exponential scheduler suggested by Beeson.
             if not config.try_adaptive:
                 trainer.alpha *= decay_rate
 
@@ -594,6 +595,7 @@ def online_finetune(config: TrainConfig, env, replay_buffer: sb3_ReplayBuffer, t
 #            episode_reward = env.get_normalized_score(episode_reward) * 100
             training_rewards.append(episode_reward)
 
+            # False by default. This is an alternative scheduling suggested by Zhao
             if config.try_adaptive:
                 current_R = env.get_normalized_score(episode_reward) / 100
                 # These values are taken from Zhao's implementation of AdaptiveBC:
@@ -714,6 +716,7 @@ def train_helper(config: TrainConfig):
 #            policy_file = Path(config.load_model)
 #            trainer.load_state_dict(torch.load(policy_file))
 
+    # See how the performance of the agent after offline pretraining
     initial_scores, _ = eval_actor(
         env,
         trainer.actor,
@@ -727,11 +730,12 @@ def train_helper(config: TrainConfig):
 
     # Policy Refinement
     trainer.alpha /= config.refinement_lambda
+    # In Beeson's paper the critic is not updated during policy refinement stage
     trainer.update_critic = False
     refinement_evaluations = offline_train(config, replay_buffer, trainer, env, 'offline_refinement', config.refinement_timesteps)
 
     trainer.update_critic = True
-    # We don't want to divide on zero
+    # We don't want to divide by zero
     if config.alpha_start == 0 or config.finetune_timesteps == 0:
         decay_rate = 0
     else:
@@ -739,6 +743,7 @@ def train_helper(config: TrainConfig):
     print("decay_rate", decay_rate)
     trainer.alpha = config.alpha_start
 
+    # Create a replay buffer which will be used during online training
     online_replay_buffer = sb3_ReplayBuffer(
             config.buffer_size,
             env.observation_space,
@@ -755,23 +760,20 @@ def train_helper(config: TrainConfig):
     episode_num, buffer_collection_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, replay_buffer, config.buffer_collections_timesteps, "buffer_collection", episode_num=0)
     buffer_collection_rewards = np.asarray(buffer_collection_rewards)
 
-    # See the proximity of states in the initialized buffer to the states visited by the behaviour policy
-#    init_states_dist, _ = offline_ds_near_neigh.kneighbors(online_replay_buffer.observations[:, 0, :])
-#    wandb.run.summary["init_states_dist_mean"] = init_states_dist.mean()
-#    wandb.run.summary["init_states_dist_std"] = init_states_dist.std()
-
     # Finetune online with data collected from interactions with the environment
     episode_num, finetune_rewards = online_finetune(config, env, online_replay_buffer, trainer, offline_ds_near_neigh, replay_buffer, config.finetune_timesteps, "online_finetune", episode_num=episode_num, decay_rate=decay_rate)
     finetune_rewards = np.asarray(finetune_rewards)
 
     wandb.finish()
 
+    # This will summarize the quality of online training. For more details, refer to my report.
     all_rewards = np.hstack((buffer_collection_rewards, finetune_rewards))
     all_rewards -= initial_score
 
     return refinement_evaluations, np.sum(all_rewards)
 
 
+# Optuna's objective
 class Objective:
     def __init__(self, config, num_seeds):
         self.config = config
@@ -788,8 +790,10 @@ class Objective:
         finetune_values = []
         for i in range(self.num_seeds):
             new_config.seed = i
+            # Load pretrained model with seed i+1
             new_config.load_model = next(filter(lambda x: (f"pretrained_seed{i+1}-" + self.config.env) in x, os.listdir(self.config.load_model_for_tune)))
             new_config.load_model = os.path.join(self.config.load_model_for_tune, new_config.load_model, "best_checkpoint.pt")
+            # Construct a name for this run
             new_config.name = f"r_{new_config.refinement_lambda}_e_{new_config.expl_noise}_as_{new_config.alpha_start}_ae_{new_config.alpha_end}_seed_{i}"
             
             refienement_evaluations, value = train_helper(new_config)
