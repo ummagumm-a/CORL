@@ -4,7 +4,72 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
 
+This repository is a supplementary code with experiments for my analysis of AdaptiveBC (Zhao et al.) and Improved TD3+BC (Beeson et al.). Link to the document with analysis: https://api.wandb.ai/links/ummagumm-a/0n0kqm6r.
 
+# Installation
+This is a fork, so for CORL-specific installation guide go either to their page or to the sections below.
+
+I assume you followed CORL's installation guide and you are now in the docker container. \
+First, create a working directory and go there. If you don't, there will be a conflict between names of tinkoff's CORL and my forked CORL:\
+`mkdir workdir && cd workdir`.
+
+Create an ssh-key inside docker container to be able to clone repositories:\
+`ssh-keygen` ('Enter' everywhere)\
+Copy the output of `cat ~/.ssh/id_key.pub` and add an ssh key to your github account here: https://github.com/settings/keys.
+
+Next, clone repositories of AdaptiveBC and Improved TD3+BC:\
+`git clone git@github.com:ummagumm-a/adaptive_bc.git`\
+`git clone git@github.com:ummagumm-a/CORL.git`
+
+To run experiments with WandB logger, you need to first log-in:\
+`wandb login`\
+insert API key from here: https://wandb.ai/settings.
+
+Install additional libraries:\
+`pip install optuna stable_baselines3 scikit-learn`
+
+# Running Experiments
+
+To run AdaptiveBC experiments:\
+`cd adaptive_bc`\
+`python main.py`
+
+To run Improved TD3+BC experiments:\
+`cd CORL`\
+`python python algorithms/improved_td3_bc.py`
+
+# Information about Repositories
+## AdaptiveBC
+I used implementation of AdaptiveBC authors: https://github.com/zhaoyi11/adaptive_bc. The only changes I made were additional logged variables and technical adjustments of 'cuda' usage. For main implementation details I refer you to the original repo.
+
+## Improved TD3+BC
+I used CORL's `algorithms/td3_bc.py` code as a foundation for my implementation of Beeson's paper. I extended CORL's code to Online-learning setting and implemented Beeson's scheduling procedure. All implementation is located at `algorithms/improved_td3_bc.py`.
+
+To save time for my experiments I pretrained models on offline dataset with 5 different seed. File `pretrain_script` contains command to run one of models.
+
+# Hyperparameter Tuning
+First, install MySQL for distributed optimization, create a database and create an optuna study:\
+`apt update`\
+`apt install sudo`\
+`sudo apt install mysql-server`\
+`sudo service mysql start`\
+`mysql -u root -e "CREATE DATABASE IF NOT EXISTS improved_td3_bc_tune_replay"`\
+`sudo apt-get install python3-mysqldb`\
+`pip install mysqlclient`\
+`optuna create-study --study-name "improved_td3_bc_tune_replay" --storage="mysql://root@localhost/improved_td3_bc_tune_replay"`
+
+To start hyperparameter optimization, run:\
+`python algorithms/improved_td3_bc.py --hyper_tune=True --load_model_for_tune=<path>`
+
+Note that the current code assumes that there are 5 pretrained model located in `path`. 
+  
+## Dump of study
+If you don't want to run the whole optimization procedure from scratch - use my dumps of databases located in `tune_trials_dump`.
+
+## Optuna Reports
+I saved some of optuna-generated graphs to `optuna_results`. These include importance graphs, contour plots, and pareto front plots.
+
+# CORL-specific README
 🧵 CORL is an Offline Reinforcement Learning library that provides high-quality and easy-to-follow single-file implementations of SOTA ORL algorithms. Each implementation is backed by a research-friendly codebase, allowing you to run or tune thousands of experiments. Heavily inspired by [cleanrl](https://github.com/vwxyzjn/cleanrl) for online RL, check them out too!<br/>
 
 * 📜 Single-file implementation
