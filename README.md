@@ -7,7 +7,7 @@
 This repository is a supplementary code with experiments for my analysis of AdaptiveBC (Zhao et al.) and Improved TD3+BC (Beeson et al.). Link to the document with analysis: https://api.wandb.ai/links/ummagumm-a/0n0kqm6r.
 
 # Installation
-This is a fork, so for CORL-specific installation guide go either to their page or to the sections below.
+This is a fork, so for CORL-specific installation guide go either to their page or to the `CORL-specific README` section below.
 
 I assume you followed CORL's installation guide and you are now in the docker container. \
 First, create a working directory and go there. If you don't, there will be a conflict between names of tinkoff's CORL and my forked CORL:\
